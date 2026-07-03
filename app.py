@@ -557,7 +557,7 @@ def page_export():
         st.success("Raport generat cu succes.")
 
 # ======================================================================
-#  Navigare — meniu lateral dreapta, pliabil (stil sidebar iOS)
+#  Navigare — meniu orizontal în partea de sus, pliabil în sus
 # ======================================================================
 PAGES = ["Simulare", "Sensibilitate", "Comparație A/B", "Validare", "Export PDF"]
 PAGE_FUNCS = {
@@ -574,25 +574,24 @@ if "active_page" not in st.session_state:
     st.session_state.active_page = PAGES[0]
 
 if st.session_state.menu_open:
-    main_col, nav_col = st.columns([0.78, 0.22], gap="medium")
-    with nav_col:
-        st.markdown('<p style="font-size:1.0rem;color:#000;font-weight:700;'
-                    'margin:0 0 8px;">Meniu</p>', unsafe_allow_html=True)
-        choice = st.radio("Navigare", PAGES,
+    nav_l, nav_r = st.columns([0.95, 0.05], vertical_alignment="center")
+    with nav_l:
+        choice = st.radio("Navigare", PAGES, horizontal=True,
                           index=PAGES.index(st.session_state.active_page),
                           label_visibility="collapsed")
         st.session_state.active_page = choice
-        if st.button("Ascunde meniul", use_container_width=True):
+    with nav_r:
+        if st.button(":material/keyboard_double_arrow_up:",
+                     type="tertiary", help="Ascunde meniul"):
             st.session_state.menu_open = False
             st.rerun()
 else:
-    if st.button("☰ Meniu"):
+    if st.button(":material/keyboard_double_arrow_down:",
+                 type="tertiary", help="Afișează meniul"):
         st.session_state.menu_open = True
         st.rerun()
-    main_col = st.container()
 
-with main_col:
-    PAGE_FUNCS[st.session_state.active_page]()
+PAGE_FUNCS[st.session_state.active_page]()
 
 st.markdown("---")
 st.caption("Model cvasi-static backward-forward · WLTC din biblioteca `wltp` (UNECE GTR15) · "

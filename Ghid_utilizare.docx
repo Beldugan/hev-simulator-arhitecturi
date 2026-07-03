@@ -1,0 +1,49 @@
+{
+  "_meta": {
+    "description": "Valori WLTP oficiale de referință pentru validarea simulărilor.",
+    "disclaimer": "Valorile WLTP pot varia în funcție de echipare, anvelope și anul de model.",
+    "last_updated": "2026-05"
+  },
+  "vehicles": [
+    {
+      "id": "bigster_mhev",
+      "name": "Dacia Bigster TCe 140 MHEV",
+      "architecture": "baseline",
+      "consumption_wltp_L_100km": 5.50,
+      "co2_wltp_g_km": 124,
+      "price_EUR": 23990,
+      "source": "Dacia – fișă tehnică Bigster, dacia.ro",
+      "accessed": "2026-05"
+    },
+    {
+      "id": "bigster_hybrid155",
+      "name": "Dacia Bigster Hybrid 155",
+      "architecture": "serie_paralel",
+      "consumption_wltp_L_100km": 4.87,
+      "co2_wltp_g_km": 110,
+      "price_EUR": 28590,
+      "source": "Dacia – fișă tehnică Bigster Hybrid, dacia.ro",
+      "accessed": "2026-05"
+    },
+    {
+      "id": "symbioz_hybrid160",
+      "name": "Renault Symbioz Hybrid 160",
+      "architecture": "serie_paralel",
+      "consumption_wltp_L_100km": 4.30,
+      "co2_wltp_g_km": 98,
+      "price_EUR": 31000,
+      "source": "Renault – fișă tehnică Symbioz E-Tech, renault.ro",
+      "accessed": "2026-05"
+    },
+    {
+      "id": "corolla_hybrid",
+      "name": "Toyota Corolla 1.8 Hybrid",
+      "architecture": "serie_paralel",
+      "consumption_wltp_L_100km": 4.40,
+      "co2_wltp_g_km": 100,
+      "price_EUR": 30000,
+      "source": "Toyota – fișă tehnică Corolla Hybrid, toyota.ro",
+      "accessed": "2026-05"
+    }
+  ]
+}
