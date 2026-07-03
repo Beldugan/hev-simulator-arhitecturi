@@ -5,3 +5,4 @@ matplotlib>=3.7
 reportlab>=4.0
 plotly>=5.18
 wltp==0.1.2a0
+requests>=2.31

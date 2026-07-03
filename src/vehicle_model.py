@@ -125,10 +125,14 @@ class VehicleParams:
     mass_kg: float = 1494.0
     Cd: float = 0.32
     Af: float = 2.65
-    f_rr: float = 0.011
+    # f_rr și P_aux sunt calibrate la CONDIȚIILE DE OMOLOGARE WLTP: coast-down
+    # cu pneuri de clasă energetică superioară (f_rr ≈ 0,009) și consumatorii
+    # auxiliari opriți pe durata testului (~300 W sarcină electrică de bord).
+    # Pentru scenarii de conducere reală se recomandă f_rr ≈ 0,011 și ~500 W.
+    f_rr: float = 0.009
     r_wheel: float = 0.336
     eta_tr: float = 0.95
-    P_aux_W: float = 500.0
+    P_aux_W: float = 300.0
 
     # Motor termic
     P_ICE_max_kW: float = 80.0

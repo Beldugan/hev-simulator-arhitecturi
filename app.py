@@ -7,11 +7,16 @@ Interfață web profesională (Streamlit) cu 5 module:
 Rulare:  streamlit run app.py
 A.M. Beldugan, FIMIM, Universitatea Ovidius din Constanța, 2026. Licență MIT.
 """
+import io
+import json
 import os
 import sys
 import tempfile
+from dataclasses import fields as dc_fields
+
 import numpy as np
 import pandas as pd
+import requests
 import streamlit as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
@@ -61,8 +66,11 @@ st.markdown("""
     }
     div[data-testid="stMetric"] label { color: #8E8E93 !important;
         font-weight: 500; font-size: .82rem; text-transform: none; }
+    div[data-testid="stMetric"] label p { white-space: normal; }
     div[data-testid="stMetricValue"] { color: #000; font-weight: 700;
-        letter-spacing: -.01em; }
+        letter-spacing: -.01em; font-size: 1.5rem; }
+    div[data-testid="stMetricValue"] > div { white-space: normal;
+        overflow: visible; line-height: 1.25; }
     div[data-testid="stMetricDelta"] { font-weight: 600; }
 
     /* Butoane — pill iOS albastru */
@@ -82,8 +90,8 @@ st.markdown("""
     }
     section[data-testid="stSidebar"] .block-container { padding-top: 1.2rem; }
     section[data-testid="stSidebar"] h2 {
-        font-size: .8rem; color: #8E8E93; font-weight: 600;
-        text-transform: uppercase; letter-spacing: .04em;
+        font-size: 1.0rem; color: #000; font-weight: 700;
+        text-transform: none; letter-spacing: 0;
     }
     section[data-testid="stSidebar"] h3 {
         font-size: .8rem; color: #8E8E93; font-weight: 600;
@@ -102,6 +110,17 @@ st.markdown("""
     div[data-testid="stRadio"] > div {
         background: #FFFFFF; border-radius: 12px; padding: 6px 12px;
         border: 0.5px solid rgba(60,60,67,.12);
+    }
+    div[data-testid="stRadio"] label p { white-space: nowrap; font-size: .9rem; }
+
+    /* Expander — antet uniform pentru toate submeniurile (drop-down) */
+    div[data-testid="stExpander"] {
+        background: #FFFFFF; border: 0.5px solid rgba(60,60,67,.12);
+        border-radius: 14px;
+    }
+    div[data-testid="stExpander"] summary p,
+    div[data-testid="stExpander"] summary span {
+        font-size: .95rem; font-weight: 600; color: #000;
     }
 
     /* Tabele */
@@ -152,50 +171,148 @@ def load_cycles() -> dict:
     return cycles
 
 
-def params_from_sidebar(prefix: str = "", defaults: VehicleParams | None = None) -> VehicleParams:
+def params_from_widgets(defaults: VehicleParams | None = None) -> VehicleParams:
+    """Widget-uri de parametri; funcționează în orice container (ex. expander)."""
     d = defaults or VehicleParams()
     return VehicleParams(
-        name=st.sidebar.text_input("Denumire", d.name, key=f"{prefix}name"),
-        mass_kg=st.sidebar.number_input("Masă [kg]", 800.0, 3000.0, d.mass_kg, 10.0, key=f"{prefix}m"),
-        Cd=st.sidebar.number_input("Cd", 0.20, 0.50, d.Cd, 0.01, key=f"{prefix}cd"),
-        Af=st.sidebar.number_input("Arie frontală [m²]", 1.5, 3.5, d.Af, 0.05, key=f"{prefix}af"),
-        f_rr=st.sidebar.number_input("Rezist. rulare", 0.006, 0.020, d.f_rr, 0.001,
-                                     format="%.3f", key=f"{prefix}frr"),
-        P_ICE_max_kW=st.sidebar.number_input("Putere MCI [kW]", 40.0, 200.0, d.P_ICE_max_kW, 1.0, key=f"{prefix}pice"),
-        eta_th_peak=st.sidebar.number_input("Randament termic", 0.30, 0.45, d.eta_th_peak, 0.01, key=f"{prefix}eta"),
-        P_EM_max_kW=st.sidebar.number_input("Putere EM [kW]", 10.0, 150.0, d.P_EM_max_kW, 1.0, key=f"{prefix}pem"),
-        bat_energy_kWh=st.sidebar.number_input("Baterie [kWh]", 0.5, 60.0, d.bat_energy_kWh, 0.1, key=f"{prefix}bat"),
-        price_EUR=st.sidebar.number_input("Preț [EUR]", 15000.0, 90000.0, d.price_EUR, 100.0, key=f"{prefix}pr"),
+        name=st.text_input("Denumire", d.name, key="w_name"),
+        mass_kg=st.number_input("Masă [kg]", 800.0, 3000.0, d.mass_kg, 10.0, key="w_m"),
+        Cd=st.number_input("Cd", 0.20, 0.50, d.Cd, 0.01, key="w_cd"),
+        Af=st.number_input("Arie frontală [m²]", 1.5, 3.5, d.Af, 0.05, key="w_af"),
+        f_rr=st.number_input("Rezist. rulare", 0.006, 0.020, d.f_rr, 0.001,
+                             format="%.3f", key="w_frr"),
+        P_ICE_max_kW=st.number_input("Putere MCI [kW]", 40.0, 200.0, d.P_ICE_max_kW, 1.0, key="w_pice"),
+        eta_th_peak=st.number_input("Randament termic", 0.30, 0.45, d.eta_th_peak, 0.01, key="w_eta"),
+        P_EM_max_kW=st.number_input("Putere EM [kW]", 10.0, 150.0, d.P_EM_max_kW, 1.0, key="w_pem"),
+        bat_energy_kWh=st.number_input("Baterie [kWh]", 0.5, 60.0, d.bat_energy_kWh, 0.1, key="w_bat"),
+        price_EUR=st.number_input("Preț [EUR]", 15000.0, 90000.0, d.price_EUR, 100.0, key="w_pr"),
     )
 
 
+# --- Încărcarea parametrilor din fișier (JSON/CSV) sau URL -----------------
+_NUMERIC_FIELDS = {f.name for f in dc_fields(VehicleParams)
+                   if f.type in ("float", "bool")} | {"name"}
+
+_TEMPLATE_JSON = json.dumps({
+    "name": "Vehiculul meu", "mass_kg": 1494, "Cd": 0.32, "Af": 2.65,
+    "f_rr": 0.009, "P_ICE_max_kW": 80, "eta_th_peak": 0.41,
+    "P_EM_max_kW": 37, "bat_energy_kWh": 1.4, "price_EUR": 28590,
+}, indent=2, ensure_ascii=False)
+
+
+def _params_from_mapping(d: dict) -> tuple[VehicleParams, list[str]]:
+    """Construiește VehicleParams dintr-un dicționar; ignoră cheile necunoscute."""
+    applied, ignored, kwargs = [], [], {}
+    for k, v in d.items():
+        if k in _NUMERIC_FIELDS:
+            try:
+                kwargs[k] = str(v) if k == "name" else float(v)
+                applied.append(k)
+            except (TypeError, ValueError):
+                ignored.append(k)
+        else:
+            ignored.append(k)
+    msgs = []
+    if applied:
+        msgs.append("Parametri preluați: " + ", ".join(applied) + ".")
+    if ignored:
+        msgs.append("Chei ignorate (necunoscute/nevalide): " + ", ".join(ignored) + ".")
+    return VehicleParams(**kwargs), msgs
+
+
+def _parse_csv_params(text: str) -> dict:
+    """CSV cu două coloane: parametru, valoare (cu sau fără antet)."""
+    df = pd.read_csv(io.StringIO(text), header=None, comment="#",
+                     skip_blank_lines=True, dtype=str)
+    if df.shape[1] < 2:
+        raise ValueError("CSV-ul trebuie să aibă două coloane: parametru, valoare.")
+    d = {}
+    for _, row in df.iterrows():
+        key = str(row[0]).strip()
+        if key.lower() in ("parametru", "parameter", "key", "camp"):
+            continue                              # rând de antet
+        d[key] = str(row[1]).strip()
+    return d
+
+
+def load_external_params(uploaded, url: str) -> tuple[VehicleParams, list[str]]:
+    """Parametri din fișier încărcat (JSON/CSV) sau dintr-un URL direct."""
+    raw, kind, msgs = None, None, []
+    if uploaded is not None:
+        raw = uploaded.getvalue().decode("utf-8", errors="replace")
+        kind = "json" if uploaded.name.lower().endswith(".json") else "csv"
+    elif url.strip():
+        try:
+            resp = requests.get(url.strip(), timeout=10)
+            resp.raise_for_status()
+            ctype = resp.headers.get("content-type", "")
+            u = url.strip().lower()
+            if u.endswith(".json") or "json" in ctype:
+                raw, kind = resp.text, "json"
+            elif u.endswith(".csv") or "csv" in ctype or "text/plain" in ctype:
+                raw, kind = resp.text, "csv"
+            else:
+                return VehicleParams(), [
+                    "URL-ul indică o pagină HTML — paginile producătorilor nu pot fi "
+                    "interpretate automat. Folosiți un link DIRECT către un fișier "
+                    "JSON sau CSV (ex. raw GitHub, fișier găzduit)."]
+        except requests.RequestException as e:
+            return VehicleParams(), [f"URL inaccesibil: {e}"]
+    if raw is None:
+        return VehicleParams(), ["Niciun fișier/URL — se folosesc valorile din lucrare."]
+    try:
+        data = json.loads(raw) if kind == "json" else _parse_csv_params(raw)
+        if not isinstance(data, dict):
+            raise ValueError("JSON-ul trebuie să fie un obiect {cheie: valoare}.")
+        p, m = _params_from_mapping(data)
+        return p, msgs + m
+    except Exception as e:
+        return VehicleParams(), [f"Fișier neinterpretabil: {e}"]
+
+
 # ======================================================================
-#  Sidebar: mod + parametri
+#  Sidebar stânga: Configurare date de intrare
 # ======================================================================
-st.sidebar.markdown("## ⚙️ Configurare")
-mode = st.sidebar.radio("Date de intrare",
-                        ["📄 Preset: Bigster (lucrare)", "✏️ Introducere manuală"])
-strategy = st.sidebar.selectbox("Strategie EMS",
-                                options=["rule_based", "ecms", "dp"],
-                                format_func=lambda s: STRATEGY_LABELS[s])
-if strategy == "dp":
-    st.sidebar.info("⏱️ Benchmark PMP-shooting: ~10-20 s per rulare completă.")
+with st.sidebar:
+    st.markdown("## Configurare date de intrare")
+    mode = st.radio("Sursa datelor",
+                    ["Preset: Bigster (lucrare)", "Introducere manuală",
+                     "Fișier încărcat / URL"])
+    strategy = st.selectbox("Strategie EMS",
+                            options=["rule_based", "ecms", "dp"],
+                            format_func=lambda s: STRATEGY_LABELS[s])
+    if strategy == "dp":
+        st.info("Benchmark PMP-shooting: ~10-20 s per rulare completă.")
 
-if mode == "✏️ Introducere manuală":
-    st.sidebar.markdown("### Parametrii vehiculului")
-    p_active = params_from_sidebar()
-else:
-    p_active = VehicleParams()
+    with st.expander("Parametrii vehiculului",
+                     expanded=(mode != "Preset: Bigster (lucrare)")):
+        if mode == "Introducere manuală":
+            p_active = params_from_widgets()
+        elif mode == "Fișier încărcat / URL":
+            up = st.file_uploader("Fișier parametri (JSON sau CSV)",
+                                  type=["json", "csv"])
+            url_in = st.text_input("sau URL direct către un fișier JSON/CSV",
+                                   placeholder="https://…/parametri.json")
+            p_active, load_msgs = load_external_params(up, url_in)
+            for m in load_msgs:
+                st.caption(m)
+            st.download_button("Descarcă model JSON", data=_TEMPLATE_JSON,
+                               file_name="parametri_vehicul.json",
+                               mime="application/json",
+                               use_container_width=True)
+        else:
+            st.caption("Se folosesc valorile din lucrare — Dacia Bigster Hybrid 155.")
+            p_active = VehicleParams()
 
-st.sidebar.markdown("### 💶 Parametri economici")
-econ = EconomicParams(
-    km_per_year=st.sidebar.number_input("Kilometraj anual [km]", 5000.0, 40000.0, 15000.0, 1000.0),
-    fuel_price_EUR_L=st.sidebar.number_input("Preț benzină [EUR/L]", 1.0, 3.0, 1.83, 0.01),
-    elec_price_EUR_kWh=st.sidebar.number_input("Preț electricitate [EUR/kWh]", 0.10, 0.60, 0.28, 0.01),
-    rabla_plus_EUR=st.sidebar.number_input("Subvenție Rabla Plus [EUR]", 0.0, 10000.0, 0.0, 500.0),
-)
+    with st.expander("Parametrii economici", expanded=False):
+        econ = EconomicParams(
+            km_per_year=st.number_input("Kilometraj anual [km]", 5000.0, 40000.0, 15000.0, 1000.0),
+            fuel_price_EUR_L=st.number_input("Preț benzină [EUR/L]", 1.0, 3.0, 1.83, 0.01),
+            elec_price_EUR_kWh=st.number_input("Preț electricitate [EUR/kWh]", 0.10, 0.60, 0.28, 0.01),
+            rabla_plus_EUR=st.number_input("Subvenție Rabla Plus [EUR]", 0.0, 10000.0, 0.0, 500.0),
+        )
 
-run_btn = st.sidebar.button("▶ Rulează simularea", type="primary", use_container_width=True)
+    run_btn = st.button("Rulează simularea", type="primary", use_container_width=True)
 
 cycles = load_cycles()
 PRICE_MAP = {"baseline": 0.84, "serie": 0.98, "paralel": 1.00, "serie_paralel": 1.04}
@@ -239,8 +356,8 @@ def page_simulare():
     base_wltc = results["baseline"]["WLTC"].consumption_L_100km
     par_wltc = results["paralel"]["WLTC"].consumption_L_100km
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Baseline · WLTC", f"{base_wltc:.2f} L/100km")
-    c2.metric("Paralel · WLTC", f"{par_wltc:.2f} L/100km",
+    c1.metric("Baseline · WLTC [L/100km]", f"{base_wltc:.2f}")
+    c2.metric("Paralel · WLTC [L/100km]", f"{par_wltc:.2f}",
               f"−{(base_wltc-par_wltc)/base_wltc*100:.1f}%")
     best_arch = min((a for a in ARCHITECTURES if a != "baseline"),
                     key=lambda a: results[a]["WLTC"].consumption_L_100km)
@@ -271,35 +388,41 @@ def page_simulare():
             {a: results[a]["WLTC"] for a in ARCHITECTURES}, p_used),
             use_container_width=True)
 
-    st.markdown("#### Analiză detaliată pe arhitectură")
-    sel_arch = st.selectbox("Arhitectura", [a for a in ARCHITECTURES],
-                            format_func=lambda a: ARCH_LABELS[a])
-    sel_cyc = st.selectbox("Ciclul", list(cycles.keys()))
-    r_sel = results[sel_arch][sel_cyc]
-    st.plotly_chart(plot_power_profile(r_sel, cycles[sel_cyc]), use_container_width=True)
-    st.plotly_chart(plot_bsfc_map(p_used, r_sel), use_container_width=True)
+    with st.expander("Analiză detaliată pe arhitectură", expanded=False):
+        sel_arch = st.selectbox("Arhitectura", [a for a in ARCHITECTURES],
+                                format_func=lambda a: ARCH_LABELS[a])
+        sel_cyc = st.selectbox("Ciclul", list(cycles.keys()))
+        r_sel = results[sel_arch][sel_cyc]
+        st.plotly_chart(plot_power_profile(r_sel, cycles[sel_cyc]), use_container_width=True)
+        st.plotly_chart(plot_bsfc_map(p_used, r_sel), use_container_width=True)
 
-    st.markdown("#### 💶 Costul total de proprietate")
-    tco_data = {}
-    for arch in ARCHITECTURES:
-        avg = np.mean([results[arch][c].consumption_L_100km for c in cycles])
-        tco_data[arch] = compute_tco(p_used.price_EUR * PRICE_MAP[arch], avg,
-                                     p_used.residual_frac, econ_used,
-                                     is_hev=(arch != "baseline"))
-    st.plotly_chart(plot_tco_breakdown(tco_data), use_container_width=True)
-    be = compute_breakeven(p_used.price_EUR * PRICE_MAP["baseline"],
-                           p_used.price_EUR,
-                           np.mean([results["baseline"][c].consumption_L_100km for c in cycles]),
-                           np.mean([results["paralel"][c].consumption_L_100km for c in cycles]),
-                           econ_used)
-    if be.get("years"):
-        st.success(f"**Break-even Paralel vs Baseline:** {be['years']} ani "
-                   f"(~{be['km']:,} km) · economie anuală {be['annual_saving']:.0f} EUR".replace(",", " "))
+    with st.expander("Costul total de proprietate", expanded=False):
+        tco_data = {}
+        for arch in ARCHITECTURES:
+            avg = np.mean([results[arch][c].consumption_L_100km for c in cycles])
+            tco_data[arch] = compute_tco(p_used.price_EUR * PRICE_MAP[arch], avg,
+                                         p_used.residual_frac, econ_used,
+                                         is_hev=(arch != "baseline"))
+        st.plotly_chart(plot_tco_breakdown(tco_data), use_container_width=True)
+        be = compute_breakeven(p_used.price_EUR * PRICE_MAP["baseline"],
+                               p_used.price_EUR,
+                               np.mean([results["baseline"][c].consumption_L_100km for c in cycles]),
+                               np.mean([results["paralel"][c].consumption_L_100km for c in cycles]),
+                               econ_used)
+        if be.get("years"):
+            st.success(f"**Break-even Paralel vs Baseline:** {be['years']} ani "
+                       f"(~{be['km']:,} km) · economie anuală {be['annual_saving']:.0f} EUR".replace(",", " "))
 
-    st.markdown("#### 🌐 Comparația cu valorile WLTP oficiale")
-    sp_avg = np.mean([results["serie_paralel"][c].consumption_L_100km for c in cycles])
-    cmpv = compare_with_sources(sp_avg, "serie_paralel", min_sources=3)
-    st.dataframe(pd.DataFrame([{
+    with st.expander("Comparația cu valorile WLTP oficiale", expanded=False):
+        # Metodologic: valorile WLTP de omologare se obțin EXCLUSIV pe ciclul
+        # WLTC — comparația folosește deci doar simularea WLTC, nu media pe
+        # cele trei cicluri (UDDS/HWFET sunt proceduri EPA, necomparabile).
+        sp_wltc = results["serie_paralel"]["WLTC"].consumption_L_100km
+        cmpv = compare_with_sources(sp_wltc, "serie_paralel", min_sources=3)
+        st.caption(f"Consum simulat serie-paralel pe WLTC: **{sp_wltc:.3f} L/100 km** — "
+                   "comparat exclusiv cu ciclul de omologare WLTP (WLTC), "
+                   "nu cu media pe cele trei cicluri.")
+        st.dataframe(pd.DataFrame([{
         "Sursă (vehicul)": c["name"], "WLTP [L/100km]": c["official_L_100km"],
         "Abatere [%]": c["deviation_pct"], "Referință": c["source"]}
         for c in cmpv["comparisons"]]), use_container_width=True, hide_index=True)
@@ -399,6 +522,7 @@ def page_export():
             rows_pdf = [{"Arhitectură": ARCH_LABELS[a], "Ciclu": c,
                          "Consum [L/100km]": results[a][c].consumption_L_100km,
                          "CO₂ [g/km]": results[a][c].co2_g_km,
+                         "Cotă EV [%]": results[a][c].ev_share_pct,
                          "Reducere [%]": round((results["baseline"][c].consumption_L_100km -
                                                 results[a][c].consumption_L_100km) /
                                                results["baseline"][c].consumption_L_100km * 100, 1)}
@@ -410,16 +534,24 @@ def page_export():
                                 p_used.residual_frac, econ_used, is_hev=(a != "baseline"))
                 tco_pdf.append({"Arhitectură": ARCH_LABELS[a], "Achiziție": t["price"],
                                 "Energie": t["cost_energy"], "Mentenanță": t["maintenance"],
+                                "Asigurare": t["insurance"], "Rezidual": t["residual"],
                                 "TCO total": t["tco_total"]})
+            be_pdf = compute_breakeven(p_used.price_EUR * PRICE_MAP["baseline"],
+                                       p_used.price_EUR,
+                                       np.mean([results["baseline"][c].consumption_L_100km for c in cycles]),
+                                       np.mean([results["paralel"][c].consumption_L_100km for c in cycles]),
+                                       econ_used)
             checks_pdf = physical_validation(results["paralel"]["WLTC"], p_used)
-            sp_avg = np.mean([results["serie_paralel"][c].consumption_L_100km for c in cycles])
-            cmp_pdf = compare_with_sources(sp_avg, "serie_paralel", min_sources=3)
+            # Comparația WLTP se face exclusiv pe ciclul de omologare WLTC
+            sp_wltc = results["serie_paralel"]["WLTC"].consumption_L_100km
+            cmp_pdf = compare_with_sources(sp_wltc, "serie_paralel", min_sources=3)
             soc_pdf = {a: results[a]["WLTC"].SoC for a in ARCHITECTURES if a != "baseline"}
             out = os.path.join(tempfile.gettempdir(), "raport_simulare_hev.pdf")
             generate_pdf_report(p_used, econ_used, rows_pdf, tco_pdf, checks_pdf,
-                                cmp_pdf, soc_pdf, STRATEGY_LABELS[strat_used], out)
+                                cmp_pdf, soc_pdf, STRATEGY_LABELS[strat_used], out,
+                                results=results, cycles=cycles, breakeven=be_pdf)
         with open(out, "rb") as f:
-            st.download_button("⬇️ Descarcă raportul PDF", f,
+            st.download_button("Descarcă raportul PDF", f,
                                file_name="raport_simulare_hev.pdf",
                                mime="application/pdf", type="primary")
         st.success("Raport generat cu succes.")
@@ -442,19 +574,17 @@ if "active_page" not in st.session_state:
     st.session_state.active_page = PAGES[0]
 
 if st.session_state.menu_open:
-    main_col, nav_col = st.columns([0.80, 0.20], gap="medium")
+    main_col, nav_col = st.columns([0.78, 0.22], gap="medium")
     with nav_col:
-        with st.container(border=True):
-            st.markdown('<p style="font-size:.8rem;color:#8E8E93;font-weight:600;'
-                        'text-transform:uppercase;letter-spacing:.04em;margin:0 0 6px;">'
-                        'Meniu</p>', unsafe_allow_html=True)
-            choice = st.radio("Navigare", PAGES,
-                              index=PAGES.index(st.session_state.active_page),
-                              label_visibility="collapsed")
-            st.session_state.active_page = choice
-            if st.button("Ascunde meniul", use_container_width=True):
-                st.session_state.menu_open = False
-                st.rerun()
+        st.markdown('<p style="font-size:1.0rem;color:#000;font-weight:700;'
+                    'margin:0 0 8px;">Meniu</p>', unsafe_allow_html=True)
+        choice = st.radio("Navigare", PAGES,
+                          index=PAGES.index(st.session_state.active_page),
+                          label_visibility="collapsed")
+        st.session_state.active_page = choice
+        if st.button("Ascunde meniul", use_container_width=True):
+            st.session_state.menu_open = False
+            st.rerun()
 else:
     if st.button("☰ Meniu"):
         st.session_state.menu_open = True
