@@ -264,6 +264,51 @@ def _tornado_chart(effects: list[dict], base: float, xlabel: str,
     return _fig_to_image(fig)
 
 
+def _live_final_chart(r: SimulationResult, speed_kmh: np.ndarray,
+                      p: VehicleParams, title: str) -> Image:
+    """Starea finală a derulării LIVE din aplicație (3 panouri):
+    viteză colorată după starea MCI + porniri, combustibil/CO₂ cumulate, SoC."""
+    v = np.asarray(speed_kmh, dtype=float)
+    t = np.arange(len(v))
+    on = r.P_engine_W > 500.0
+    fuel_cum = np.cumsum(r.fuel_rate_g_s) / (p.fuel_density_kg_L * 1000.0)
+    co2_cum = np.cumsum(r.fuel_rate_g_s) * (p.fuel_CO2_kg_L / p.fuel_density_kg_L)
+    soc = r.SoC * 100.0
+    starts = np.where(on[1:] & ~on[:-1])[0] + 1
+    if on.any() and on[0]:
+        starts = np.concatenate([[0], starts])
+
+    fig, (a1, a2, a3) = plt.subplots(3, 1, figsize=(8.5, 5.8), sharex=True,
+                                     gridspec_kw={"height_ratios": [1.3, 1, 1]})
+    a1.plot(t, v, c="#3C3C43", lw=0.9)
+    a1.fill_between(t, np.where(on, v, 0.0), color="#dc2626", alpha=0.30,
+                    label="MCI pornit")
+    a1.fill_between(t, np.where(~on, v, 0.0), color="#10b981", alpha=0.30,
+                    label="Electric (MCI oprit)")
+    if len(starts):
+        a1.scatter(starts, v[starts], marker="^", s=26, c="#dc2626",
+                   edgecolors="white", linewidths=0.6, zorder=3,
+                   label="Pornire MCI")
+    a1.set_ylabel("km/h"); a1.legend(fontsize=7, ncol=3, loc="upper left")
+    a1.set_title(title, fontsize=10)
+
+    a2.plot(t, fuel_cum, c="#f59e0b", lw=1.6, label="Combustibil cumulat [L]")
+    a2b = a2.twinx()
+    a2b.plot(t, co2_cum, c="#64748b", lw=1.4, ls=":", label="CO₂ cumulat [g]")
+    a2.set_ylabel("L"); a2b.set_ylabel("g CO₂")
+    h1, l1 = a2.get_legend_handles_labels()
+    h2, l2 = a2b.get_legend_handles_labels()
+    a2.legend(h1 + h2, l1 + l2, fontsize=7, loc="upper left")
+
+    a3.plot(t, soc, c="#8b5cf6", lw=1.4, label="SoC")
+    a3.axhline(p.SoC_target * 100, ls="--", c="#94a3b8", lw=1, label="SoC țintă")
+    a3.set_ylabel("SoC [%]"); a3.set_xlabel("Timp [s]")
+    a3.legend(fontsize=7, ncol=2, loc="upper left")
+    for a in (a1, a2, a3):
+        a.grid(alpha=0.3)
+    return _fig_to_image(fig)
+
+
 def _tco_chart(tco_table: list[dict]) -> Image:
     labels = [t["Arhitectură"].split(" (")[0] for t in tco_table]
     comps = [("Achiziție", "#3C3C43"), ("Energie", "#f59e0b"),
@@ -491,18 +536,33 @@ def generate_pdf_report(
             r = results[a]["WLTC"]
             story.append(Paragraph(f"4.{hyb.index(a)+1}. {ARCH_LABELS[a]}", ss["H3x"]))
             story.append(_power_chart(r, cycles["WLTC"], f"{ARCH_LABELS[a]} · WLTC"))
+            story.append(Spacer(1, 6))
+            story.append(_live_final_chart(
+                r, cycles["WLTC"], p,
+                f"{ARCH_LABELS[a]} · WLTC — derularea completă a ciclului"))
             on = r.P_engine_W > 500
             on_pct = float(np.mean(on)) * 100
             p_mean = float(np.mean(r.P_engine_W[on])) / 1000 if on.any() else 0.0
             p_std = float(np.std(r.P_engine_W[on])) / 1000 if on.any() else 0.0
             pem_max = float(np.max(r.P_EM_W)) / 1000
             e_regen = float(-np.sum(np.minimum(r.P_EM_W, 0.0))) / 3.6e6
+            fuel_tot_L = float(np.sum(r.fuel_rate_g_s)) / (p.fuel_density_kg_L * 1000)
+            co2_tot_g = float(np.sum(r.fuel_rate_g_s)) * (p.fuel_CO2_kg_L / p.fuel_density_kg_L)
+            n_starts = int(np.sum(on[1:] & ~on[:-1]) + (1 if on.any() and on[0] else 0))
             story.append(Spacer(1, 3))
             story.append(_interp(ss,
-                f"motorul termic funcționează {on_pct:.0f}% din durata ciclului, "
-                f"cu o putere medie de {p_mean:.1f} kW (σ = {p_std:.1f} kW); mașina "
+                f"motorul termic funcționează {on_pct:.0f}% din durata ciclului "
+                f"({n_starts} porniri), cu o putere medie de {p_mean:.1f} kW "
+                f"(σ = {p_std:.1f} kW); mașina "
                 f"electrică atinge {pem_max:.1f} kW în tracțiune și recuperează "
-                f"{e_regen:.2f} kWh prin frânare regenerativă. " + arch_note.get(a, "")))
+                f"{e_regen:.2f} kWh prin frânare regenerativă. În derularea completă "
+                f"a ciclului se consumă {fuel_tot_L:.2f} L de combustibil "
+                f"({co2_tot_g:.0f} g CO₂), acumulați predominant în fazele cu "
+                f"banda roșie (MCI pornit); pe segmentele verzi vehiculul rulează "
+                f"electric, iar SoC-ul revine spre țintă prin recuperare și "
+                f"reîncărcare. " + arch_note.get(a, "")))
+            if a != hyb[-1]:
+                story.append(PageBreak())
         story.append(PageBreak())
 
         # ---- 5. BSFC ----

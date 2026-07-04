@@ -197,13 +197,25 @@ _DARK_CSS = """
         color: #F2F2F7;
     }
 
-    .stButton > button[kind="secondary"],
-    .stDownloadButton > button {
-        background: #1C1C1E; color: #0A84FF;
-        border-color: rgba(84,84,88,.65);
+    .stButton > button, .stDownloadButton > button,
+    [data-testid^="stBaseButton"] {
+        background: #1C1C1E !important; color: #0A84FF !important;
+        border: 0.5px solid rgba(84,84,88,.65) !important;
     }
-    .stButton > button[kind="primary"] { background: #0A84FF; color: #fff; }
-    .stButton > button[kind="tertiary"] { color: #8E8E93; }
+    .stButton > button p, .stButton > button span,
+    .stDownloadButton > button p { color: inherit !important; }
+    .stButton > button[kind="primary"],
+    [data-testid="stBaseButton-primary"] {
+        background: #0A84FF !important; color: #FFFFFF !important;
+        border: none !important;
+    }
+    .stButton > button[kind="primary"] p,
+    [data-testid="stBaseButton-primary"] p { color: #FFFFFF !important; }
+    .stButton > button[kind="tertiary"],
+    [data-testid="stBaseButton-tertiary"] {
+        background: transparent !important; border: none !important;
+        color: #8E8E93 !important;
+    }
 
     div[data-testid="stDataFrame"] {
         background: #1C1C1E; border-color: rgba(84,84,88,.65);
