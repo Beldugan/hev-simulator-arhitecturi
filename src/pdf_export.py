@@ -245,6 +245,25 @@ def _bsfc_chart(p: VehicleParams,
     return _fig_to_image(fig)
 
 
+def _tornado_chart(effects: list[dict], base: float, xlabel: str,
+                   title: str) -> Image:
+    """Diagramă tornado: bare orizontale −20% / +20% față de valoarea de bază."""
+    eff = sorted(effects, key=lambda e: abs(e["high"] - e["low"]))
+    labels = [e["label"] for e in eff]
+    y = np.arange(len(eff))
+    fig, ax = plt.subplots(figsize=(8.5, 0.42 * len(eff) + 1.2))
+    for i, e in enumerate(eff):
+        ax.barh(i, e["low"] - base, left=base, height=0.62,
+                color="#0ea5e9", label="−20%" if i == 0 else None)
+        ax.barh(i, e["high"] - base, left=base, height=0.62,
+                color="#f59e0b", label="+20%" if i == 0 else None)
+    ax.axvline(base, c="#0f172a", lw=1.1)
+    ax.set_yticks(y); ax.set_yticklabels(labels, fontsize=8)
+    ax.set_xlabel(xlabel); ax.set_title(title, fontsize=10)
+    ax.legend(fontsize=8, loc="lower right"); ax.grid(axis="x", alpha=0.3)
+    return _fig_to_image(fig)
+
+
 def _tco_chart(tco_table: list[dict]) -> Image:
     labels = [t["Arhitectură"].split(" (")[0] for t in tco_table]
     comps = [("Achiziție", "#3C3C43"), ("Energie", "#f59e0b"),
@@ -289,6 +308,8 @@ def generate_pdf_report(
     results: dict[str, dict[str, SimulationResult]] | None = None,
     cycles: dict[str, np.ndarray] | None = None,
     breakeven: dict | None = None,
+    sensitivity: dict | None = None,
+    sens_arch_label: str = "",
 ) -> str:
     """
     Generează raportul PDF complet, cu watermark pe fiecare pagină.
@@ -580,9 +601,62 @@ def generate_pdf_report(
                                ("FONTNAME", (1, i), (1, i), _FONT_BOLD)]))
     story.append(t)
 
-    # ---- 8. Comparație cu surse externe ----
+    # ---- 8. Analiza de sensibilitate ----
+    if sensitivity:
+        story.append(PageBreak())
+        story.append(Paragraph("8. Analiza de sensibilitate (±20%)", ss["H2x"]))
+        story.append(Paragraph(
+            f"Fiecare parametru este variat cu ±20% față de valoarea nominală "
+            f"({sens_arch_label or 'arhitectura de referință'}, ciclul WLTC, "
+            f"strategie bazată pe reguli); diagramele tornado ordonează parametrii "
+            f"după mărimea efectului.", ss["Metax"]))
+        story.append(Spacer(1, 4))
+
+        base_c = sensitivity["base_consumption"]
+        story.append(Paragraph("8.1. Efectul asupra consumului", ss["H3x"]))
+        story.append(_tornado_chart(sensitivity["consumption"], base_c,
+                                    "Consum [L/100 km]",
+                                    f"Sensibilitatea consumului (bază: {base_c:.3f} L/100 km)"))
+        rc = sorted(sensitivity["consumption"],
+                    key=lambda e: abs(e["high"] - e["low"]), reverse=True)
+        spans_c = [(e["label"], abs(e["high"] - e["low"]),
+                    abs(e["high"] - e["low"]) / base_c * 100) for e in rc]
+        top3 = "; ".join(f"<b>{l}</b> (interval {s:.3f} L/100 km, "
+                         f"{pct:.1f}% din bază)" for l, s, pct in spans_c[:3])
+        least = spans_c[-1]
+        story.append(Spacer(1, 4))
+        story.append(_interp(ss,
+            f"cei mai influenți parametri asupra consumului sunt: {top3}. "
+            f"Cel mai puțin influent este {least[0]} ({least[2]:.1f}% din bază). "
+            f"Dominanța parametrilor de rezistență la înaintare (masă, rulare, "
+            f"aerodinamică) și a randamentului termic este tipică modelelor "
+            f"cvasi-statice: consumul răspunde aproape liniar la energia cerută "
+            f"la roată și la eficiența conversiei; capacitatea bateriei are efect "
+            f"redus la un full-hybrid charge-sustaining, unde bateria funcționează "
+            f"ca tampon, nu ca sursă de energie."))
+
+        base_t = sensitivity["base_tco"]
+        story.append(Paragraph("8.2. Efectul asupra costului total de proprietate", ss["H3x"]))
+        story.append(_tornado_chart(sensitivity["tco"], base_t, "TCO [EUR]",
+                                    f"Sensibilitatea TCO (bază: {_fmt_int(base_t)} EUR)"))
+        rt = sorted(sensitivity["tco"],
+                    key=lambda e: abs(e["high"] - e["low"]), reverse=True)
+        spans_t = [(e["label"], abs(e["high"] - e["low"])) for e in rt]
+        top3t = "; ".join(f"<b>{l}</b> (interval {_fmt_int(s)} EUR)"
+                          for l, s in spans_t[:3])
+        story.append(Spacer(1, 4))
+        story.append(_interp(ss,
+            f"asupra TCO-ului, cei mai influenți parametri sunt: {top3t}. "
+            f"Parametrii economici (kilometraj anual, preț combustibil) intră în "
+            f"competiție directă cu cei tehnici: un utilizator cu rulaj mare "
+            f"amplifică orice diferență de consum, deci avantajul economic al "
+            f"hibridei crește cu utilizarea. Parametrii tehnici acționează asupra "
+            f"TCO indirect, prin consum — de aceea ordinea lor relativă o "
+            f"urmărește pe cea din diagrama consumului."))
+
+    # ---- 9. Comparație cu surse externe ----
     if comparison_data and comparison_data.get("comparisons"):
-        story.append(Paragraph("8. Comparația cu valorile WLTP oficiale", ss["H2x"]))
+        story.append(Paragraph("9. Comparația cu valorile WLTP oficiale", ss["H2x"]))
         hdr = ["Sursă (vehicul)", "WLTP [L/100km]", "Abatere [%]", "Referință"]
         rows = [hdr] + [[c["name"], f'{c["official_L_100km"]:.2f}',
                          f'{c["deviation_pct"]:+.1f}', c["source"]]

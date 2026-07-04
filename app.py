@@ -27,7 +27,9 @@ from tco_model import (EconomicParams, compute_tco, compute_breakeven,
 from analysis import sensitivity_analysis, physical_validation
 from visualizations import (plot_soc_trajectory, plot_power_profile, plot_bsfc_map,
                             plot_consumption_bars, plot_tco_breakdown,
-                            plot_sensitivity_tornado, plot_vehicle_comparison)
+                            plot_sensitivity_tornado, plot_vehicle_comparison,
+                            plot_cycle_live, plot_ignition_scatter,
+                            cycle_stats, ignition_events, CYCLE_INFO, set_dark)
 from pdf_export import generate_pdf_report
 
 # ======================================================================
@@ -47,16 +49,6 @@ st.markdown("""
     }
     .stApp { background: #F2F2F7; }
     .main .block-container { padding-top: 1.0rem; max-width: 1280px; }
-
-    /* Header — card mare iOS, alb, titlu mare stânga */
-    .app-header {
-        background: #FFFFFF; border-radius: 16px; padding: 22px 26px;
-        margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.04);
-        border: 0.5px solid rgba(60,60,67,.12);
-    }
-    .app-header h1 { margin: 0; font-size: 1.9rem; font-weight: 700;
-                     color: #000; letter-spacing: -.02em; }
-    .app-header p  { margin: 5px 0 0; color: #8E8E93; font-size: .92rem; }
 
     /* Carduri metrice — celule iOS */
     div[data-testid="stMetric"] {
@@ -89,6 +81,10 @@ st.markdown("""
         background: #F2F2F7; border-right: 0.5px solid rgba(60,60,67,.15);
     }
     section[data-testid="stSidebar"] .block-container { padding-top: 1.2rem; }
+    section[data-testid="stSidebar"] h1 {
+        font-size: 1.25rem; color: #000; font-weight: 800;
+        letter-spacing: -.01em; padding-bottom: 0;
+    }
     section[data-testid="stSidebar"] h2 {
         font-size: 1.0rem; color: #000; font-weight: 700;
         text-transform: none; letter-spacing: 0;
@@ -146,13 +142,93 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-<div class="app-header">
-  <h1>HEV Architecture Simulator</h1>
-  <p>Analiza comparativă a configurațiilor de propulsie hibridă — serie · paralel · serie-paralel —
-  pentru vehicule de clasă C-SUV · FIMIM, Universitatea Ovidius din Constanța, 2026</p>
-</div>
-""", unsafe_allow_html=True)
+# ======================================================================
+#  Tema grafică: light (implicit) / dark (stil iOS)
+# ======================================================================
+_DARK_CSS = """
+<style>
+    .stApp, [data-testid="stAppViewContainer"] { background: #000000; }
+    .stApp p, .stApp label, .stApp li, .stApp span { color: #F2F2F7; }
+    h1, h2, h3, h4, h5 { color: #FFFFFF !important; }
+
+    section[data-testid="stSidebar"] {
+        background: #000000; border-right: 0.5px solid rgba(84,84,88,.65);
+    }
+    section[data-testid="stSidebar"] h1,
+    section[data-testid="stSidebar"] h2 { color: #FFFFFF; }
+
+    div[data-testid="stMetric"] {
+        background: #1C1C1E; border-color: rgba(84,84,88,.65);
+        box-shadow: none;
+    }
+    div[data-testid="stMetricValue"] { color: #FFFFFF; }
+
+    div[data-testid="stRadio"] > div {
+        background: #1C1C1E; border-color: rgba(84,84,88,.65);
+    }
+    div[data-testid="stExpander"] {
+        background: #1C1C1E; border-color: rgba(84,84,88,.65);
+    }
+    div[data-testid="stExpander"] summary p,
+    div[data-testid="stExpander"] summary span { color: #FFFFFF; }
+    div[data-testid="stExpander"] details { background: transparent; }
+
+    [data-baseweb="select"] > div {
+        background: #1C1C1E !important; color: #F2F2F7 !important;
+        border-color: rgba(84,84,88,.65) !important;
+    }
+    [data-baseweb="select"] svg { fill: #8E8E93; }
+    [data-baseweb="menu"], [data-baseweb="popover"] div[role="listbox"] {
+        background: #2C2C2E !important;
+    }
+    [data-baseweb="menu"] li { color: #F2F2F7 !important; }
+
+    div[data-testid="stNumberInput"] input,
+    div[data-testid="stTextInput"] input {
+        background: #1C1C1E !important; color: #F2F2F7 !important;
+        border-color: rgba(84,84,88,.65) !important;
+    }
+    div[data-testid="stNumberInput"] button {
+        background: #2C2C2E; color: #F2F2F7;
+        border-color: rgba(84,84,88,.65);
+    }
+    [data-testid="stFileUploaderDropzone"] {
+        background: #1C1C1E; border-color: rgba(84,84,88,.65);
+        color: #F2F2F7;
+    }
+
+    .stButton > button[kind="secondary"],
+    .stDownloadButton > button {
+        background: #1C1C1E; color: #0A84FF;
+        border-color: rgba(84,84,88,.65);
+    }
+    .stButton > button[kind="primary"] { background: #0A84FF; color: #fff; }
+    .stButton > button[kind="tertiary"] { color: #8E8E93; }
+
+    div[data-testid="stDataFrame"] {
+        background: #1C1C1E; border-color: rgba(84,84,88,.65);
+    }
+    div[data-testid="stCaptionContainer"], .stCaption,
+    small, [data-testid="stWidgetLabel"] p { color: #8E8E93 !important; }
+    hr { border-top: 0.5px solid rgba(84,84,88,.65); }
+</style>
+"""
+
+if "ui_theme" not in st.session_state:
+    st.session_state.ui_theme = "light"
+if st.session_state.ui_theme == "dark":
+    st.markdown(_DARK_CSS, unsafe_allow_html=True)
+set_dark(st.session_state.ui_theme == "dark")
+
+_sp_theme, _btn_theme = st.columns([0.94, 0.06])
+with _btn_theme:
+    _ic = (":material/dark_mode:" if st.session_state.ui_theme == "light"
+           else ":material/light_mode:")
+    if st.button(_ic, type="tertiary",
+                 help="Comută tema luminoasă / întunecată"):
+        st.session_state.ui_theme = ("dark" if st.session_state.ui_theme == "light"
+                                     else "light")
+        st.rerun()
 
 
 # ======================================================================
@@ -271,13 +347,16 @@ def load_external_params(uploaded, url: str) -> tuple[VehicleParams, list[str]]:
 
 
 # ======================================================================
-#  Sidebar stânga: Configurare date de intrare
+#  Sidebar stânga: titlu, Configurare date de intrare, Meniu
 # ======================================================================
+PAGES = ["Simulare", "Sensibilitate", "Comparație A/B", "Validare", "Export PDF"]
+
 with st.sidebar:
+    st.markdown("# Simulator arhitecturi HEV")
     st.markdown("## Configurare date de intrare")
-    mode = st.radio("Sursa datelor",
-                    ["Preset: Bigster (lucrare)", "Introducere manuală",
-                     "Fișier încărcat / URL"])
+    mode = st.selectbox("Sursa datelor",
+                        ["Preset: Bigster (lucrare)", "Introducere manuală",
+                         "Fișier încărcat / URL"])
     strategy = st.selectbox("Strategie EMS",
                             options=["rule_based", "ecms", "dp"],
                             format_func=lambda s: STRATEGY_LABELS[s])
@@ -313,6 +392,12 @@ with st.sidebar:
         )
 
     run_btn = st.button("Rulează simularea", type="primary", use_container_width=True)
+
+    st.markdown("## Meniu")
+    st.session_state.active_page = st.selectbox(
+        "Meniu", PAGES,
+        index=PAGES.index(st.session_state.get("active_page", PAGES[0])),
+        label_visibility="collapsed")
 
 cycles = load_cycles()
 PRICE_MAP = {"baseline": 0.84, "serie": 0.98, "paralel": 1.00, "serie_paralel": 1.04}
@@ -393,6 +478,76 @@ def page_simulare():
                                 format_func=lambda a: ARCH_LABELS[a])
         sel_cyc = st.selectbox("Ciclul", list(cycles.keys()))
         r_sel = results[sel_arch][sel_cyc]
+
+        # --- Ce înseamnă ciclul selectat ---
+        st.markdown("##### Despre ciclul selectat")
+        st.markdown(CYCLE_INFO.get(sel_cyc, ""))
+        st.caption("Valorile de mai jos sunt calculate din profilul de viteză "
+                   "efectiv încărcat în aplicație:")
+        cs = cycle_stats(cycles[sel_cyc])
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("Durată [s]", f"{cs['duration_s']}")
+        k2.metric("Distanță [km]", f"{cs['distance_km']:.2f}")
+        k3.metric("Viteză medie / în mers [km/h]",
+                  f"{cs['v_avg']:.1f} / {cs['v_avg_moving']:.1f}")
+        k4.metric("Viteză maximă [km/h]", f"{cs['v_max']:.1f}")
+        st.caption(f"Staționare: {cs['idle_pct']:.0f}% din durată · "
+                   f"{cs['n_stops']} opriri complete.")
+
+        # --- Derularea LIVE ---
+        st.markdown("##### Derularea LIVE a ciclului")
+        _SPEEDS = [1, 5, 10, 15, 20, 25, 30]
+        spd_cur = st.session_state.get("live_speed", 1)
+        b_l, b_r = st.columns([0.32, 0.68])
+        lbl = "Redare: timp real (1×)" if spd_cur == 1 else f"Redare: {spd_cur}×"
+        if b_l.button(lbl, help="Fiecare apăsare crește viteza de derulare cu 5×, "
+                                "până la maximum 30×; apoi revine la timp real."):
+            st.session_state["live_speed"] = _SPEEDS[
+                (_SPEEDS.index(spd_cur) + 1) % len(_SPEEDS)]
+            st.rerun()
+        b_r.caption(f"La viteza curentă, redarea completă durează "
+                    f"~{cs['duration_s'] // max(1, spd_cur)} s "
+                    f"(ciclul real: {cs['duration_s']} s).")
+        st.plotly_chart(
+            plot_cycle_live(r_sel, cycles[sel_cyc], p_used,
+                            f"{ARCH_LABELS[sel_arch]} · {sel_cyc}",
+                            speed=spd_cur),
+            use_container_width=True)
+        st.caption("Apăsați **▶ Redă** pentru derularea în timp: banda roșie = "
+                   "motorul termic pornit, banda verde = rulare electrică; "
+                   "triunghiurile marchează pornirile MCI. Rândul 2: consumul de "
+                   "combustibil și CO₂ cumulate; rândul 3: starea de încărcare a "
+                   "bateriei. Cursorul de sus permite saltul la orice moment.")
+
+        # --- Pornirile motorului termic ---
+        if sel_arch != "baseline":
+            st.markdown("##### Pornirile motorului termic")
+            ign = ignition_events(r_sel, cycles[sel_cyc])
+            if ign["n"] > 0:
+                i1, i2, i3, i4 = st.columns(4)
+                i1.metric("Număr porniri", f"{ign['n']}")
+                i2.metric("Prima pornire",
+                          f"t = {ign['t'][0]} s · {ign['speed'][0]:.0f} km/h")
+                i3.metric("Viteză mediană la pornire [km/h]",
+                          f"{np.median(ign['speed']):.1f}")
+                i4.metric("SoC la porniri [%]",
+                          f"{ign['soc'].min():.0f}–{ign['soc'].max():.0f}")
+                st.plotly_chart(plot_ignition_scatter(r_sel, cycles[sel_cyc]),
+                                use_container_width=True)
+                low_soc = ign["soc"] <= p_used.SoC_target * 100
+                st.caption(
+                    f"Motorul termic pornește din două cauze, vizibile în grafic: "
+                    f"**cerere de tracțiune** (puterea cerută depășește capabilitatea "
+                    f"mașinii electrice — porniri la viteze mari, indiferent de SoC) "
+                    f"și **reîncărcarea bateriei** (SoC sub ținta de "
+                    f"{p_used.SoC_target*100:.0f}% — porniri și la viteze mici). "
+                    f"Pe acest ciclu, {int(low_soc.sum())} din {ign['n']} porniri au "
+                    f"avut loc cu SoC sub țintă; motorul a funcționat "
+                    f"{ign['on_share_pct']:.0f}% din durata ciclului.")
+            else:
+                st.info("Motorul termic nu a pornit pe acest ciclu.")
+
+        st.markdown("##### Profilul de putere și harta BSFC")
         st.plotly_chart(plot_power_profile(r_sel, cycles[sel_cyc]), use_container_width=True)
         st.plotly_chart(plot_bsfc_map(p_used, r_sel), use_container_width=True)
 
@@ -546,10 +701,14 @@ def page_export():
             sp_wltc = results["serie_paralel"]["WLTC"].consumption_L_100km
             cmp_pdf = compare_with_sources(sp_wltc, "serie_paralel", min_sources=3)
             soc_pdf = {a: results[a]["WLTC"].SoC for a in ARCHITECTURES if a != "baseline"}
+            sens_pdf = sensitivity_analysis("serie_paralel", p_used, econ_used,
+                                            cycles["WLTC"], "WLTC")
             out = os.path.join(tempfile.gettempdir(), "raport_simulare_hev.pdf")
             generate_pdf_report(p_used, econ_used, rows_pdf, tco_pdf, checks_pdf,
                                 cmp_pdf, soc_pdf, STRATEGY_LABELS[strat_used], out,
-                                results=results, cycles=cycles, breakeven=be_pdf)
+                                results=results, cycles=cycles, breakeven=be_pdf,
+                                sensitivity=sens_pdf,
+                                sens_arch_label=ARCH_LABELS["serie_paralel"])
         with open(out, "rb") as f:
             st.download_button("Descarcă raportul PDF", f,
                                file_name="raport_simulare_hev.pdf",
@@ -557,9 +716,8 @@ def page_export():
         st.success("Raport generat cu succes.")
 
 # ======================================================================
-#  Navigare — meniu orizontal în partea de sus, pliabil în sus
+#  Dispatch — pagina aleasă din meniul din sidebar
 # ======================================================================
-PAGES = ["Simulare", "Sensibilitate", "Comparație A/B", "Validare", "Export PDF"]
 PAGE_FUNCS = {
     "Simulare": page_simulare,
     "Sensibilitate": page_sensibilitate,
@@ -567,29 +725,6 @@ PAGE_FUNCS = {
     "Validare": page_validare,
     "Export PDF": page_export,
 }
-
-if "menu_open" not in st.session_state:
-    st.session_state.menu_open = True
-if "active_page" not in st.session_state:
-    st.session_state.active_page = PAGES[0]
-
-if st.session_state.menu_open:
-    nav_l, nav_r = st.columns([0.95, 0.05], vertical_alignment="center")
-    with nav_l:
-        choice = st.radio("Navigare", PAGES, horizontal=True,
-                          index=PAGES.index(st.session_state.active_page),
-                          label_visibility="collapsed")
-        st.session_state.active_page = choice
-    with nav_r:
-        if st.button(":material/keyboard_double_arrow_up:",
-                     type="tertiary", help="Ascunde meniul"):
-            st.session_state.menu_open = False
-            st.rerun()
-else:
-    if st.button(":material/keyboard_double_arrow_down:",
-                 type="tertiary", help="Afișează meniul"):
-        st.session_state.menu_open = True
-        st.rerun()
 
 PAGE_FUNCS[st.session_state.active_page]()
 

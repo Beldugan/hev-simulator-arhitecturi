@@ -35,17 +35,48 @@ _LAYOUT_BASE = dict(
     hoverlabel=dict(bgcolor="white", font_size=12),
 )
 
+# --- Tema grafică (light implicit / dark iOS) --------------------------
+_DARK = False
+
+
+def set_dark(flag: bool) -> None:
+    """Comută paleta graficelor Plotly între light (implicit) și dark iOS."""
+    global _DARK
+    _DARK = bool(flag)
+
+
+def _theme_colors() -> dict:
+    if _DARK:
+        return dict(card="#1C1C1E", ink="#E5E5EA", font="#F2F2F7",
+                    grid="rgba(84,84,88,0.45)", hover="#2C2C2E")
+    return dict(card="#FFFFFF", ink="#3C3C43", font="#000000",
+                grid=COLORS["grid"], hover="white")
+
 
 def _grid(fig: go.Figure) -> go.Figure:
-    fig.update_xaxes(gridcolor=COLORS["grid"], zerolinecolor=COLORS["grid"])
-    fig.update_yaxes(gridcolor=COLORS["grid"], zerolinecolor=COLORS["grid"])
+    c = _theme_colors()
+    fig.update_xaxes(gridcolor=c["grid"], zerolinecolor=c["grid"],
+                     tickfont=dict(color=c["ink"]),
+                     title_font=dict(color=c["ink"]))
+    fig.update_yaxes(gridcolor=c["grid"], zerolinecolor=c["grid"],
+                     tickfont=dict(color=c["ink"]),
+                     title_font=dict(color=c["ink"]))
+    fig.update_layout(font_color=c["ink"],
+                      hoverlabel=dict(bgcolor=c["hover"],
+                                      font_color=c["font"]),
+                      legend_font_color=c["ink"])
+    for ann in fig.layout.annotations:      # titlurile de subgrafic etc.
+        if ann.font is None or ann.font.color is None:
+            ann.font = dict(color=c["ink"], size=(ann.font.size if ann.font else None))
     # Poziționare uniformă titlu/legendă pentru a evita suprapunerile:
     # titlul rămâne singur în banda de sus (stânga), iar legenda coboară sub
-    # grafic. update_layout fuzionează dicționarele, deci textul titlului și
-    # orientarea orizontală a legendei setate anterior se păstrează.
+    # grafic. Poziția titlului se setează DOAR dacă există text de titlu —
+    # altfel plotly.js afișează literal „undefined".
+    if fig.layout.title.text:
+        fig.update_layout(
+            title=dict(x=0.01, xanchor="left", y=0.97, yanchor="top",
+                       font=dict(size=15, color=c["font"])))
     fig.update_layout(
-        title=dict(x=0.01, xanchor="left", y=0.97, yanchor="top",
-                   font=dict(size=15, color="#000000")),
         legend=dict(orientation="h", yanchor="top", y=-0.16,
                     x=0.5, xanchor="center"),
         margin=dict(l=55, r=24, t=58, b=88),
@@ -226,4 +257,230 @@ def plot_vehicle_comparison(res_a: dict, res_b: dict,
     fig.update_layout(**_LAYOUT_BASE, height=380,
                       title="Comparație vehicul A vs vehicul B",
                       legend=dict(orientation="h", y=1.18))
+    return _grid(fig)
+
+
+# ======================================================================
+#  Derularea LIVE a ciclului + analiza pornirilor MCI
+# ======================================================================
+CYCLE_INFO: dict[str, str] = {
+    "WLTC": (
+        "**WLTC clasa 3b** — ciclul de omologare european (WLTP, UNECE GTR 15). "
+        "Durează **1800 s (30 min)** pe **~23,3 km** și este împărțit în 4 faze "
+        "după viteză: **Low** (589 s, urban, vârf 56,5 km/h), **Medium** (433 s, "
+        "suburban, vârf 76,6 km/h), **High** (455 s, extraurban, vârf 97,4 km/h) "
+        "și **Extra-High** (323 s, autostradă, vârf 131,3 km/h). Profil dinamic, "
+        "cu opriri multiple în prima parte — acoperă întregul spectru de utilizare."
+    ),
+    "UDDS": (
+        "**UDDS (FTP-72)** — ciclul urban american (EPA). Durează **1369 s "
+        "(~23 min)** pe **~12,1 km**, cu vârf de 91,2 km/h și opriri frecvente "
+        "(17 opriri) — reproduce traficul de oraș cu accelerări/frânări dese. "
+        "Este ciclul cel mai favorabil hibridelor: multă frânare regenerativă și "
+        "rulare electrică la viteze mici."
+    ),
+    "HWFET": (
+        "**HWFET** — ciclul de autostradă american (EPA). Durează **765 s "
+        "(~13 min)** pe **~16,5 km**, în curgere continuă, fără opriri, cu viteza "
+        "medie ~77 km/h. Este cel mai defavorabil hibridelor: frânare "
+        "regenerativă aproape absentă, motorul termic funcționează cvasi-permanent."
+    ),
+}
+
+# Limitele fazelor WLTC clasa 3b [s] (Low | Medium | High | Extra-High)
+_WLTC_PHASES = [(0, 589, "Low"), (589, 1022, "Medium"),
+                (1022, 1477, "High"), (1477, 1800, "Extra-High")]
+
+
+def cycle_stats(speed_kmh: np.ndarray) -> dict:
+    """Statistici de ciclu calculate din profilul de viteză (dt = 1 s)."""
+    v = np.asarray(speed_kmh, dtype=float)
+    dist_km = float(np.sum(v / 3.6)) / 1000.0
+    moving = v > 0.5
+    return dict(
+        duration_s=int(len(v)),
+        distance_km=dist_km,
+        v_max=float(v.max()),
+        v_avg=float(v.mean()),
+        v_avg_moving=float(v[moving].mean()) if moving.any() else 0.0,
+        idle_pct=float(np.mean(~moving)) * 100.0,
+        n_stops=int(np.sum((~moving[1:]) & moving[:-1])),
+    )
+
+
+def ignition_events(r: SimulationResult, speed_kmh: np.ndarray,
+                    thr_W: float = 500.0) -> dict:
+    """Momentele în care pornește motorul termic + viteza și SoC-ul la pornire."""
+    on = r.P_engine_W > thr_W
+    starts = np.where(on[1:] & ~on[:-1])[0] + 1
+    if on[0]:
+        starts = np.concatenate([[0], starts])
+    return dict(
+        t=starts.astype(int),
+        speed=np.asarray(speed_kmh)[starts],
+        soc=r.SoC[starts] * 100.0,
+        n=int(len(starts)),
+        on_share_pct=float(np.mean(on)) * 100.0,
+    )
+
+
+def plot_cycle_live(r: SimulationResult, speed_kmh: np.ndarray,
+                    p: VehicleParams, title: str, speed: int = 1) -> go.Figure:
+    """
+    Grafic animat (Play/Pauză + cursor): derularea în timp a ciclului.
+
+    Redarea la viteza 1x durează exact cât ciclul real; parametrul `speed`
+    (1/5/10/15/20/25/30) accelerează derularea. Tehnic, curbele sunt desenate
+    complet, iar animația retrage o „cortină" albă și mută un cursor — cadrele
+    conțin doar forme de layout, deci figura rămâne ușoară indiferent de durată.
+
+    Rândul 1: viteza, colorată după starea MCI (roșu = pornit, verde = electric),
+              cu marcaje la fiecare pornire a motorului termic.
+    Rândul 2: consumul de combustibil cumulat [L] și CO₂ cumulat [g].
+    Rândul 3: starea de încărcare a bateriei [%].
+    """
+    v = np.asarray(speed_kmh, dtype=float)
+    n = len(v)
+    t = np.arange(n)
+    on = r.P_engine_W > 500.0
+    fuel_cum_L = np.cumsum(r.fuel_rate_g_s) / (p.fuel_density_kg_L * 1000.0)
+    co2_cum_g = np.cumsum(r.fuel_rate_g_s) * (p.fuel_CO2_kg_L / p.fuel_density_kg_L)
+    soc_pct = r.SoC * 100.0
+    ign = ignition_events(r, v)
+    v_ice = np.where(on, v, 0.0)
+    v_ev = np.where(~on, v, 0.0)
+    th = _theme_colors()
+
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                        row_heights=[0.40, 0.32, 0.28],
+                        specs=[[{}], [{"secondary_y": True}], [{}]])
+
+    fig.add_trace(go.Scatter(x=t, y=v, mode="lines",
+                             line=dict(color=th["ink"], width=1.4),
+                             name="Viteză [km/h]"), row=1, col=1)
+    fig.add_trace(go.Scatter(x=t, y=v_ice, mode="lines",
+                             line=dict(width=0), fill="tozeroy",
+                             fillcolor="rgba(220,38,38,0.30)",
+                             name="MCI pornit"), row=1, col=1)
+    fig.add_trace(go.Scatter(x=t, y=v_ev, mode="lines",
+                             line=dict(width=0), fill="tozeroy",
+                             fillcolor="rgba(16,185,129,0.30)",
+                             name="Electric (MCI oprit)"), row=1, col=1)
+    fig.add_trace(go.Scatter(x=ign["t"], y=ign["speed"], mode="markers",
+                             marker=dict(symbol="triangle-up", size=9,
+                                         color="#dc2626",
+                                         line=dict(color="white", width=1)),
+                             name="Pornire MCI"), row=1, col=1)
+    fig.add_trace(go.Scatter(x=t, y=fuel_cum_L, mode="lines",
+                             line=dict(color="#f59e0b", width=2),
+                             name="Combustibil cumulat [L]"), row=2, col=1)
+    fig.add_trace(go.Scatter(x=t, y=co2_cum_g, mode="lines",
+                             line=dict(color="#64748b", width=2, dash="dot"),
+                             name="CO₂ cumulat [g]"), row=2, col=1,
+                  secondary_y=True)
+    fig.add_trace(go.Scatter(x=t, y=soc_pct, mode="lines",
+                             line=dict(color="#8b5cf6", width=2),
+                             name="SoC [%]"), row=3, col=1)
+    fig.add_trace(go.Scatter(x=[0, n - 1], y=[p.SoC_target * 100] * 2,
+                             mode="lines",
+                             line=dict(color="#94a3b8", width=1, dash="dash"),
+                             name="SoC țintă", showlegend=False), row=3, col=1)
+
+    # Fazele WLTC — linii ca trasee statice + adnotări (rămân sub cortină)
+    if 1790 <= n <= 1810:
+        for x0, x1, name in _WLTC_PHASES:
+            fig.add_trace(go.Scatter(x=[x1, x1], y=[0, v.max() * 1.12],
+                                     mode="lines", showlegend=False,
+                                     hoverinfo="skip",
+                                     line=dict(color="#cbd5e1", width=1,
+                                               dash="dot")), row=1, col=1)
+            fig.add_annotation(x=(x0 + x1) / 2, y=1.05, yref="y domain",
+                               xref="x", text=name, showarrow=False,
+                               font=dict(size=9, color="#8E8E93"), row=1, col=1)
+
+    # --- Animația: cortină + cursor (doar layout, cadre foarte ușoare) ---
+    def _shapes(cur: int) -> list[dict]:
+        return [
+            dict(type="rect", xref="x", yref="paper", layer="above",
+                 x0=cur, x1=n, y0=0, y1=1,
+                 fillcolor=th["card"], opacity=1.0, line_width=0),
+            dict(type="line", xref="x", yref="paper", layer="above",
+                 x0=cur, x1=cur, y0=0, y1=1,
+                 line=dict(color=th["ink"], width=1)),
+        ]
+
+    step_s = 2                                   # 1 cadru = 2 s de ciclu
+    cuts = list(range(0, n, step_s)) + [n]
+    frame_ms = step_s * 1000.0 / max(1, int(speed))
+    fig.frames = [go.Frame(name=str(c), layout=dict(shapes=_shapes(c)))
+                  for c in cuts]
+    fig.update_layout(shapes=_shapes(0))
+
+    # Axe fixe (nu se rescalează în timpul animației)
+    fig.update_xaxes(range=[0, n], row=3, col=1, title_text="Timp [s]")
+    fig.update_xaxes(range=[0, n], row=1, col=1)
+    fig.update_xaxes(range=[0, n], row=2, col=1)
+    fig.update_yaxes(range=[0, v.max() * 1.12], title_text="km/h", row=1, col=1)
+    fig.update_yaxes(range=[0, max(fuel_cum_L[-1], 1e-3) * 1.12],
+                     title_text="L", row=2, col=1, secondary_y=False)
+    fig.update_yaxes(range=[0, max(co2_cum_g[-1], 1e-3) * 1.12],
+                     title_text="g CO₂", row=2, col=1, secondary_y=True)
+    fig.update_yaxes(range=[min(soc_pct.min() * 0.97, 45),
+                            max(soc_pct.max() * 1.03, 65)],
+                     title_text="SoC [%]", row=3, col=1)
+
+    slider_cuts = cuts[::max(1, len(cuts) // 90)]
+    fig.update_layout(
+        template="plotly_dark" if th["card"] != "#FFFFFF" else "plotly_white",
+        paper_bgcolor=th["card"], plot_bgcolor=th["card"],
+        font=dict(color=th["ink"]),
+        height=640,
+        title=dict(text=title, x=0.01, y=0.98,
+                   font=dict(size=15, color=th["font"])),
+        legend=dict(orientation="h", y=-0.10, x=0.5, xanchor="center",
+                    font=dict(size=10)),
+        margin=dict(l=55, r=24, t=64, b=60),
+        updatemenus=[dict(
+            type="buttons", direction="left",
+            x=0.99, y=1.10, xanchor="right", yanchor="top",
+            pad=dict(r=0, t=0),
+            buttons=[
+                dict(label="▶ Redă", method="animate",
+                     args=[None, dict(frame=dict(duration=frame_ms,
+                                                 redraw=False),
+                                      transition=dict(duration=0),
+                                      fromcurrent=True)]),
+                dict(label="❚❚ Pauză", method="animate",
+                     args=[[None], dict(frame=dict(duration=0, redraw=False),
+                                        mode="immediate")]),
+            ])],
+        sliders=[dict(
+            active=0, x=0.0, y=1.16, xanchor="left", yanchor="top",
+            len=0.72, currentvalue=dict(prefix="t ≈ ", suffix=" s",
+                                        font=dict(size=11)),
+            pad=dict(b=0, t=0),
+            steps=[dict(method="animate", label=str(c),
+                        args=[[str(c)], dict(frame=dict(duration=0,
+                                                        redraw=False),
+                                             mode="immediate")])
+                   for c in slider_cuts])],
+    )
+    return fig
+
+
+def plot_ignition_scatter(r: SimulationResult, speed_kmh: np.ndarray) -> go.Figure:
+    """Pornirile MCI în planul SoC — viteză, colorate după momentul din ciclu."""
+    ign = ignition_events(r, speed_kmh)
+    fig = go.Figure(go.Scatter(
+        x=ign["soc"], y=ign["speed"], mode="markers",
+        marker=dict(size=10, color=ign["t"], colorscale="Viridis",
+                    colorbar=dict(title="Timp [s]", thickness=12),
+                    line=dict(color="white", width=1)),
+        text=[f"t = {tt} s" for tt in ign["t"]],
+        hovertemplate="SoC: %{x:.1f}%<br>Viteză: %{y:.1f} km/h<br>%{text}<extra></extra>",
+    ))
+    fig.update_layout(**_LAYOUT_BASE, height=360,
+                      title="Pornirile motorului termic: viteză vs SoC",
+                      xaxis_title="SoC la pornire [%]",
+                      yaxis_title="Viteză la pornire [km/h]")
     return _grid(fig)
