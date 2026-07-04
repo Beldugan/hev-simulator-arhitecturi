@@ -64,27 +64,80 @@ def _norm(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+def _detect_sep(path: str) -> str:
+    """Detectează separatorul din prima linie (virgulă, punct-virgulă sau tab)."""
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        head = f.readline()
+    counts = {",": head.count(","), ";": head.count(";"), "\t": head.count("\t")}
+    return max(counts, key=counts.get)
+
+
+# Aliasuri acceptate pentru fiecare coloană necesară (denumirile diferă între
+# exporturile din vizualizatorul co2cars și fișierele anuale complete).
+_COL_ALIASES = {
+    "Mk":   ["mk", "make", "marca"],
+    "Cn":   ["cn", "commercial name", "cn (commercial name)", "commercialname"],
+    "m_kg": ["m (kg)", "m(kg)", "m", "mass", "mass in running order",
+             "mass in running order (kg)", "mro"],
+    "ep_kW": ["ep (kw)", "ep(kw)", "ep", "engine power", "engine power (kw)",
+              "enginepower"],
+    "co2_wltp": ["ewltp (g/km)", "ewltp(g/km)", "ewltp",
+                 "specific co2 emissions (wltp)",
+                 "specific co2 emissions in g/km (wltp)"],
+    "Ft":   ["ft", "fuel type", "fueltype"],
+}
+
+
+def _map_columns(cols: list[str]) -> dict | None:
+    """Mapează coloanele reale ale fișierului la cele 6 necesare (fără
+    sensibilitate la majuscule/spații). Returnează None dacă lipsește vreuna."""
+    norm = {re.sub(r"\s+", " ", c).strip().lower(): c for c in cols}
+    mapping = {}
+    for target, aliases in _COL_ALIASES.items():
+        found = next((norm[a] for a in aliases if a in norm), None)
+        if found is None:
+            return None
+        mapping[target] = found
+    return mapping
+
+
 def _load_eea(path: str, chunksize: int = 500_000) -> pd.DataFrame:
-    """Citește doar coloanele necesare, pe bucăți (fișierul e uriaș)."""
-    usecols_variants = [
-        ["Mk", "Cn", "m (kg)", "ep (KW)", "Ewltp (g/km)", "Ft"],
-        ["Mk", "Cn", "M (kg)", "Ep (KW)", "Ewltp (g/km)", "Ft"],
-    ]
-    last_err = None
-    for usecols in usecols_variants:
-        try:
-            chunks = []
-            for ch in pd.read_csv(path, usecols=usecols, chunksize=chunksize,
-                                  encoding_errors="replace", low_memory=True):
-                ch.columns = ["Mk", "Cn", "m_kg", "ep_kW", "co2_wltp", "Ft"]
-                ch = ch[ch["Ft"].astype(str).str.lower()
-                          .str.contains("electric|petrol|diesel", na=False)]
-                chunks.append(ch)
-            return pd.concat(chunks, ignore_index=True)
-        except ValueError as e:
-            last_err = e
-    raise SystemExit(f"Coloanele EEA nu au fost găsite: {last_err}\n"
-                     f"Verificați că ați descărcat setul de date corect.")
+    """Citește doar coloanele necesare, pe bucăți; detectează separatorul și
+    denumirile de coloane; afișează diagnostic dacă structura nu se potrivește."""
+    sep = _detect_sep(path)
+    header = pd.read_csv(path, sep=sep, nrows=0, encoding_errors="replace")
+    mapping = _map_columns(list(header.columns))
+    if mapping is None:
+        print("\nCOLOANELE GĂSITE în fișier:")
+        for c in header.columns:
+            print("   ", repr(c))
+        raise SystemExit(
+            "\nNu am putut identifica coloanele necesare "
+            "(marcă, denumire comercială, masă, putere, CO2 WLTP, tip combustibil).\n"
+            "Trimiteți lista de mai sus pentru adaptarea scriptului, sau "
+            "re-exportați setul de date DETALIAT (per înregistrare) de la "
+            "co2cars.apps.eea.europa.eu.")
+    print(f"Separator detectat: {sep!r} · coloane mapate: "
+          + ", ".join(f"{k}←{v!r}" for k, v in mapping.items()))
+    chunks = []
+    for ch in pd.read_csv(path, sep=sep, usecols=list(mapping.values()),
+                          chunksize=chunksize, encoding_errors="replace",
+                          low_memory=True):
+        ch = ch.rename(columns={v: k for k, v in mapping.items()})
+        ch = ch[ch["Ft"].astype(str).str.lower()
+                  .str.contains("electric|petrol|diesel|hybrid", na=False)]
+        chunks.append(ch)
+    df = pd.concat(chunks, ignore_index=True)
+    for c in ("m_kg", "ep_kW", "co2_wltp"):
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+    if len(df) == 0:
+        vals = pd.read_csv(path, sep=sep, usecols=[mapping["Ft"]],
+                           nrows=200_000, encoding_errors="replace")
+        print("\nValori întâlnite în coloana de combustibil:",
+              sorted(vals.iloc[:, 0].astype(str).str.lower().unique())[:20])
+        raise SystemExit("Filtrul pe tipul de combustibil nu a păstrat nimic — "
+                         "trimiteți lista de mai sus pentru adaptare.")
+    return df
 
 
 def main() -> None:
