@@ -1,7 +1,7 @@
 marca,model,varianta,eea_inregistrari,eea_masa_mediana,eea_putere_mediana,eea_co2_mediana,abatere_masa_pct,abatere_putere_pct,abatere_co2_pct,status
-Toyota,Yaris,1.5 Hybrid 116,3992,1265.0,68.0,102.0,-14.2,0.0,-5.9,DE VERIFICAT manual
-Toyota,Yaris,1.5 Hybrid 130,3991,1265.0,68.0,102.0,-11.1,8.8,-1.0,DE VERIFICAT manual
-Toyota,Yaris Cross,1.5 Hybrid 116 FWD,2866,1265.0,68.0,102.0,-8.3,0.0,0.0,DE VERIFICAT manual
+Toyota,Yaris,1.5 Hybrid 116,3991,1265.0,68.0,102.0,0.0,0.0,-5.9,OK
+Toyota,Yaris,1.5 Hybrid 130,3991,1265.0,68.0,102.0,0.0,8.8,-1.0,OK
+Toyota,Yaris Cross,1.5 Hybrid 116 FWD,2866,1265.0,68.0,102.0,0.0,0.0,0.0,OK
 Toyota,Yaris Cross,1.5 Hybrid 130 AWD-i,2866,1265.0,68.0,102.0,-1.6,8.8,9.8,DE VERIFICAT manual
 Toyota,Corolla,1.8 Hybrid 140 HB,3861,1430.0,72.0,99.0,-5.2,0.0,3.0,OK
 Toyota,Corolla,2.0 Hybrid 196 HB,736,1515.0,112.0,115.0,-6.3,0.0,-7.0,DE VERIFICAT manual
@@ -9,44 +9,44 @@ Toyota,Corolla,1.8 Hybrid 140 Touring Sports,3861,1430.0,72.0,99.0,-2.4,0.0,5.1,
 Toyota,Corolla,2.0 Hybrid 196 Touring Sports,736,1515.0,112.0,115.0,-3.6,0.0,-5.2,OK
 Toyota,Corolla Cross,2.0 Hybrid 197 FWD,0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire diferită)
 Toyota,Corolla Cross,2.0 Hybrid 197 AWD-i,0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire diferită)
-Toyota,C-HR,1.8 Hybrid 140,2375,1720.0,120.0,106.0,-17.2,-40.0,-0.9,DE VERIFICAT manual
-Toyota,C-HR,2.0 Hybrid 198,32201,1720.0,111.0,19.0,-13.7,0.9,463.2,DE VERIFICAT manual
-Toyota,C-HR,2.0 PHEV 223,32201,1720.0,111.0,19.0,-4.4,0.9,0.0,OK
-Toyota,RAV4,2.5 Hybrid 218 FWD,20908,1985.0,136.0,22.0,-18.4,-3.7,472.7,DE VERIFICAT manual
-Toyota,RAV4,2.5 Hybrid 222 AWD-i,20908,1985.0,136.0,22.0,-14.9,-3.7,495.5,DE VERIFICAT manual
-Toyota,RAV4,2.5 PHEV 306 AWD-i,20908,1985.0,136.0,22.0,-4.3,0.0,0.0,OK
-Toyota,Prius,2.0 PHEV 223,1463,1630.0,111.0,17.0,-5.2,0.9,-5.9,OK
+Toyota,C-HR,1.8 Hybrid 140,1346,1510.0,72.0,108.0,13.9,0.0,-2.8,DE VERIFICAT manual
+Toyota,C-HR,2.0 Hybrid 198,1946,1720.0,113.0,108.0,0.0,-0.9,-0.9,OK
+Toyota,C-HR,2.0 PHEV 223,30254,1720.0,111.0,19.0,-4.4,0.9,0.0,OK
+Toyota,RAV4,2.5 Hybrid 218 FWD,2617,1735.0,131.0,131.0,14.4,0.0,-3.8,DE VERIFICAT manual
+Toyota,RAV4,2.5 Hybrid 222 AWD-i,2617,1735.0,131.0,131.0,14.4,0.0,0.0,DE VERIFICAT manual
+Toyota,RAV4,2.5 PHEV 306 AWD-i,18291,1995.0,136.0,22.0,-4.8,0.0,0.0,OK
+Toyota,Prius,2.0 PHEV 223,1399,1630.0,111.0,16.0,-5.2,0.9,0.0,OK
 Toyota,Camry,2.5 Hybrid 218,333,1645.0,137.0,110.0,-3.0,-4.4,9.1,DE VERIFICAT manual
 Toyota,Highlander,2.5 Hybrid 248 AWD-i,72,2130.0,140.0,159.0,-5.4,0.0,-8.2,DE VERIFICAT manual
 Toyota,Yaris GR SPORT,1.5 Hybrid 130,0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire diferită)
 Lexus,LBX,1.5 Hybrid 136 FWD,85,1355.0,67.0,104.0,-5.5,0.0,2.9,OK
 Lexus,LBX,1.5 Hybrid 136 AWD,85,1355.0,67.0,104.0,0.0,0.0,7.7,OK
-Lexus,UX,250h FWD,23,1630.0,112.0,127.0,-5.5,0.0,-11.8,DE VERIFICAT manual
+Lexus,UX,250h FWD,23,1630.0,112.0,127.0,-5.5,0.0,0.0,OK
 Lexus,UX,300h AWD,23,1630.0,112.0,127.0,-0.6,0.0,-6.3,OK
-Lexus,NX,350h AWD,6618,2065.0,136.0,22.0,-15.5,2.9,486.4,DE VERIFICAT manual
-Lexus,NX,450h+ PHEV AWD,6618,2065.0,136.0,22.0,-3.6,0.0,-4.5,OK
-Lexus,RX,350h AWD,2213,2185.0,136.0,25.0,-6.9,2.9,460.0,DE VERIFICAT manual
-Lexus,RX,450h+ PHEV AWD,2213,2185.0,136.0,25.0,-1.1,0.0,0.0,OK
-Lexus,RX,500h AWD performance,213,2185.0,174.0,26.0,-3.2,16.1,526.9,DE VERIFICAT manual
+Lexus,NX,350h AWD,158,2065.0,136.0,152.0,0.0,2.9,-15.1,DE VERIFICAT manual
+Lexus,NX,450h+ PHEV AWD,6459,2065.0,136.0,22.0,-3.6,0.0,-4.5,OK
+Lexus,RX,350h AWD,102,2185.0,136.0,148.0,-6.9,2.9,-5.4,DE VERIFICAT manual
+Lexus,RX,450h+ PHEV AWD,2110,2185.0,136.0,25.0,-1.1,0.0,0.0,OK
+Lexus,RX,500h AWD performance,55,2180.0,200.0,184.0,-3.0,1.0,-11.4,DE VERIFICAT manual
 Lexus,ES,300h,26,1755.0,131.0,121.0,-4.3,0.0,-1.7,OK
 Lexus,IS,300h,1,1695.0,133.0,,-4.4,-1.5,,DE VERIFICAT manual
-Lexus,LC,500h,35,2180.0,200.0,184.0,-8.9,10.0,0.0,DE VERIFICAT manual
+Lexus,LC,500h,35,2180.0,200.0,184.0,0.0,10.0,0.0,OK
 Lexus,LS,500h AWD,35,2180.0,200.0,184.0,4.1,10.0,-3.3,OK
 Lexus,LM,350h AWD,3,2420.0,140.0,163.0,-5.8,0.0,-3.1,OK
 Renault,Clio,E-Tech full hybrid 145,567,1348.0,69.0,96.0,-6.7,0.0,0.0,DE VERIFICAT manual
-Renault,Captur,E-Tech full hybrid 145,695,1441.0,80.0,108.0,-6.5,-13.8,-2.8,DE VERIFICAT manual
-Renault,Arkana,E-Tech full hybrid 145,1058,1422.0,103.0,130.0,0.9,-33.0,-19.2,DE VERIFICAT manual
+Renault,Captur,E-Tech full hybrid 145,683,1441.0,80.0,108.0,-6.5,-13.8,-2.8,DE VERIFICAT manual
+Renault,Arkana,E-Tech full hybrid 145,1058,1422.0,103.0,130.0,0.9,-33.0,0.0,OK
 Renault,Symbioz,E-Tech full hybrid 145,544,1498.0,69.0,107.0,-5.9,0.0,0.9,OK
 Renault,Austral,E-Tech full hybrid 200,421,1592.0,96.0,107.0,-4.7,0.0,-1.9,OK
 Renault,Espace,E-Tech full hybrid 200,0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire diferită)
-Renault,Rafale,E-Tech full hybrid 200,9931,2009.0,110.0,14.0,-19.7,-12.7,700.0,DE VERIFICAT manual
-Renault,Rafale,E-Tech 4x4 300 PHEV,9715,2009.0,110.0,14.0,-2.7,0.0,21.4,DE VERIFICAT manual
+Renault,Rafale,E-Tech full hybrid 200,184,1742.0,96.0,112.5,15.3,0.0,-0.4,DE VERIFICAT manual
+Renault,Rafale,E-Tech 4x4 300 PHEV,9528,2009.0,110.0,14.0,-2.7,0.0,0.0,OK
 Renault,Megane,E-Tech PHEV 160,2,1676.0,67.0,28.0,-3.6,1.5,0.0,OK
-Renault,Captur,E-Tech PHEV 160,695,1441.0,80.0,108.0,8.5,-15.0,-70.4,DE VERIFICAT manual
+Renault,Captur,E-Tech PHEV 160,683,1441.0,80.0,108.0,0.0,-15.0,0.0,OK
 Dacia,Bigster,Hybrid 155,3492,1494.0,80.0,106.0,0.0,0.0,3.8,OK
 Dacia,Duster,Hybrid 140,10921,1455.0,96.0,124.0,-4.2,-28.1,-8.1,DE VERIFICAT manual
 Dacia,Jogger,Hybrid 140,387,1460.0,69.0,107.0,-4.5,0.0,4.7,OK
-Nissan,Qashqai,e-POWER 190,621,1465.0,116.0,144.0,13.7,0.0,-18.8,DE VERIFICAT manual
+Nissan,Qashqai,e-POWER 190,621,1465.0,116.0,144.0,0.0,0.0,0.0,OK
 Nissan,X-Trail,e-POWER 204 2WD,165,1929.0,116.0,143.0,-6.9,0.0,-7.7,DE VERIFICAT manual
 Nissan,X-Trail,e-POWER 213 e-4ORCE,165,1929.0,116.0,143.0,-1.0,0.0,0.0,OK
 Nissan,Juke,Hybrid 143,134,1405.0,69.0,109.0,-4.6,0.0,-4.6,OK
@@ -55,169 +55,169 @@ Honda,Jazz Crosstar,e:HEV 1.5 122,0,,,,,,,NEGĂSIT în EEA (model non-UE sau den
 Honda,Civic,e:HEV 2.0 184,192,1533.0,105.0,113.0,0.0,0.0,-4.4,OK
 Honda,HR-V,e:HEV 1.5 131,239,1452.0,79.0,122.0,-5.0,0.0,0.0,OK
 Honda,ZR-V,e:HEV 2.0 184,111,1675.0,105.0,131.0,-5.1,0.0,-0.8,OK
-Honda,CR-V,e:HEV 2.0 184 AWD,2247,1988.0,109.0,18.0,-10.2,0.0,738.9,DE VERIFICAT manual
-Honda,CR-V,e:PHEV 2.0 184,2247,1988.0,109.0,18.0,-1.7,0.0,0.0,OK
+Honda,CR-V,e:HEV 2.0 184 AWD,221,1875.0,109.0,140.0,6.0,0.0,7.9,OK
+Honda,CR-V,e:PHEV 2.0 184,2026,1988.0,109.0,18.0,-1.7,0.0,0.0,OK
 Hyundai,Kona,1.6 GDI Hybrid 141,969,1485.0,69.0,106.0,-4.7,11.6,2.8,OK
-Hyundai,Tucson,1.6 T-GDI Hybrid 215 2WD,23133,1825.0,118.0,25.0,-12.9,11.9,424.0,DE VERIFICAT manual
-Hyundai,Tucson,1.6 T-GDI Hybrid 215 4WD,23133,1825.0,118.0,25.0,-8.5,11.9,460.0,DE VERIFICAT manual
-Hyundai,Tucson,1.6 T-GDI PHEV 253 4WD,23133,1825.0,118.0,25.0,1.6,11.9,24.0,DE VERIFICAT manual
-Hyundai,Santa Fe,1.6 T-GDI Hybrid 215 2WD,5450,2165.0,118.0,38.0,-13.2,11.9,273.7,DE VERIFICAT manual
-Hyundai,Santa Fe,1.6 T-GDI PHEV 253 4WD,5450,2165.0,118.0,38.0,-3.7,11.9,0.0,OK
+Hyundai,Tucson,1.6 T-GDI Hybrid 215 2WD,3449,1650.0,118.0,142.0,10.6,11.9,-7.7,DE VERIFICAT manual
+Hyundai,Tucson,1.6 T-GDI Hybrid 215 4WD,3449,1650.0,118.0,142.0,10.6,11.9,-1.4,DE VERIFICAT manual
+Hyundai,Tucson,1.6 T-GDI PHEV 253 4WD,19684,1825.0,118.0,24.0,1.6,11.9,4.2,OK
+Hyundai,Santa Fe,1.6 T-GDI Hybrid 215 2WD,130,2110.0,118.0,171.0,2.6,11.9,-17.0,DE VERIFICAT manual
+Hyundai,Santa Fe,1.6 T-GDI PHEV 253 4WD,5320,2165.0,118.0,38.0,-3.7,11.9,0.0,OK
 Hyundai,Ioniq,1.6 GDI Hybrid 141,0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire diferită)
 Hyundai,Ioniq,1.6 GDI PHEV 141,0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire diferită)
-Kia,Niro,1.6 GDI Hybrid 141,3154,1594.0,69.0,19.0,-7.5,11.6,463.2,DE VERIFICAT manual
-Kia,Niro,1.6 GDI PHEV 183,3154,1594.0,69.0,19.0,0.0,11.6,21.1,DE VERIFICAT manual
-Kia,Sportage,1.6 T-GDI Hybrid 215 2WD,10938,1905.0,118.0,27.0,-16.7,11.9,363.0,DE VERIFICAT manual
-Kia,Sportage,1.6 T-GDI Hybrid 215 4WD,10938,1905.0,118.0,27.0,-12.7,11.9,403.7,DE VERIFICAT manual
-Kia,Sportage,1.6 T-GDI PHEV 265 4WD,10938,1905.0,118.0,27.0,0.0,11.9,25.9,DE VERIFICAT manual
-Kia,Sorento,1.6 T-GDI Hybrid 215 2WD,3716,2105.0,118.0,37.0,-8.4,11.9,302.7,DE VERIFICAT manual
-Kia,Sorento,1.6 T-GDI PHEV 253 4WD,3716,2105.0,118.0,37.0,-0.3,11.9,-2.7,OK
-Kia,XCeed,1.6 GDI PHEV 141,609,1594.0,77.0,32.0,-0.2,0.0,-9.4,DE VERIFICAT manual
+Kia,Niro,1.6 GDI Hybrid 141,168,1594.0,75.0,54.0,-7.5,2.7,98.1,DE VERIFICAT manual
+Kia,Niro,1.6 GDI PHEV 183,2986,1594.0,69.0,19.0,0.0,11.6,0.0,OK
+Kia,Sportage,1.6 T-GDI Hybrid 215 2WD,2160,1649.0,118.0,141.0,15.5,11.9,-11.3,DE VERIFICAT manual
+Kia,Sportage,1.6 T-GDI Hybrid 215 4WD,2160,1649.0,118.0,141.0,15.5,11.9,-3.5,DE VERIFICAT manual
+Kia,Sportage,1.6 T-GDI PHEV 265 4WD,8778,1905.0,118.0,27.0,0.0,11.9,0.0,OK
+Kia,Sorento,1.6 T-GDI Hybrid 215 2WD,48,1959.0,118.0,160.0,7.5,11.9,-6.9,DE VERIFICAT manual
+Kia,Sorento,1.6 T-GDI PHEV 253 4WD,3667,2105.0,118.0,37.0,-0.3,11.9,-2.7,OK
+Kia,XCeed,1.6 GDI PHEV 141,543,1594.0,77.0,32.0,-0.2,0.0,-9.4,DE VERIFICAT manual
 Kia,Ceed SW,1.6 GDI PHEV 141,0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire diferită)
-Ford,Kuga,2.5 FHEV 183 FWD,32514,1859.0,111.0,21.0,-8.5,0.9,519.0,DE VERIFICAT manual
-Ford,Kuga,2.5 FHEV 183 AWD,32514,1859.0,111.0,21.0,-3.9,0.9,566.7,DE VERIFICAT manual
-Ford,Kuga,2.5 PHEV 243,32514,1859.0,111.0,21.0,0.0,0.9,19.0,DE VERIFICAT manual
+Ford,Kuga,2.5 FHEV 183 FWD,2700,1837.0,111.0,59.0,1.2,0.9,120.3,DE VERIFICAT manual
+Ford,Kuga,2.5 FHEV 183 AWD,2700,1837.0,111.0,59.0,-2.8,0.9,137.3,DE VERIFICAT manual
+Ford,Kuga,2.5 PHEV 243,29813,1859.0,111.0,21.0,0.0,0.9,0.0,OK
 Ford,Explorer,3.0 PHEV 457 AWD,90,2541.0,267.0,71.0,-3.0,0.0,0.0,OK
 Ford,Puma,1.0 EcoBoost mHEV 125,1691,1353.0,92.0,129.0,-5.4,0.0,-3.9,OK
 Ford,Focus,1.0 EcoBoost mHEV 155,386,1413.0,114.0,119.0,-5.1,0.0,2.5,OK
-VW,Golf,1.5 eHybrid 204,8253,1662.0,130.0,7.0,-2.5,-15.4,42.9,DE VERIFICAT manual
-VW,Golf,GTE 1.5 272,8253,1662.0,130.0,7.0,-0.7,0.0,57.1,DE VERIFICAT manual
-VW,Passat,1.5 eHybrid 204,15366,1849.0,110.0,9.0,-3.7,0.0,22.2,DE VERIFICAT manual
-VW,Passat,1.5 eHybrid 272,15355,1849.0,110.0,9.0,-2.9,18.2,33.3,DE VERIFICAT manual
-VW,Tiguan,1.5 eHybrid 204,23447,1866.0,110.0,10.0,-3.0,0.0,20.0,DE VERIFICAT manual
-VW,Tiguan,1.5 eHybrid 272,23322,1866.0,110.0,10.0,-1.9,18.2,30.0,DE VERIFICAT manual
-VW,Touareg,3.0 eHybrid 381 4MOTION,1699,2470.0,250.0,50.0,-2.6,0.0,32.0,DE VERIFICAT manual
-VW,Touareg,3.0 R eHybrid 462 4MOTION,1699,2470.0,250.0,50.0,-0.2,0.0,42.0,DE VERIFICAT manual
+VW,Golf,1.5 eHybrid 204,8024,1662.0,130.0,7.0,-2.5,-15.4,0.0,OK
+VW,Golf,GTE 1.5 272,8024,1662.0,130.0,7.0,-0.7,0.0,0.0,OK
+VW,Passat,1.5 eHybrid 204,15092,1849.0,110.0,9.0,-3.7,0.0,0.0,OK
+VW,Passat,1.5 eHybrid 272,15092,1849.0,110.0,9.0,-2.9,18.2,0.0,OK
+VW,Tiguan,1.5 eHybrid 204,22811,1866.0,110.0,10.0,-3.0,0.0,0.0,OK
+VW,Tiguan,1.5 eHybrid 272,22811,1866.0,110.0,10.0,-1.9,18.2,0.0,OK
+VW,Touareg,3.0 eHybrid 381 4MOTION,1685,2470.0,250.0,50.0,-2.6,0.0,0.0,OK
+VW,Touareg,3.0 R eHybrid 462 4MOTION,1685,2470.0,250.0,50.0,-0.2,0.0,0.0,OK
 VW,Arteon,1.4 eHybrid 218,15,1813.0,115.0,27.0,-4.4,0.0,-3.7,OK
-VW,Multivan,1.4 eHybrid 218,7118,2341.0,130.0,20.0,-9.7,-15.4,110.0,DE VERIFICAT manual
-Skoda,Octavia,1.4 iV PHEV 204,1198,1389.0,110.0,113.0,17.8,0.0,-79.6,DE VERIFICAT manual
-Skoda,Superb,1.5 iV PHEV 204,12126,1854.0,110.0,9.0,-3.7,0.0,22.2,DE VERIFICAT manual
-Skoda,Kodiaq,1.5 iV PHEV 204,23668,1917.0,110.0,11.0,-1.5,0.0,18.2,DE VERIFICAT manual
-Seat,Leon,1.5 e-Hybrid 204,5068,1708.0,110.0,9.0,-5.5,0.0,22.2,DE VERIFICAT manual
-Cupra,Leon,1.5 e-Hybrid 272 VZ,17386,1720.0,110.0,9.0,-3.7,18.2,33.3,DE VERIFICAT manual
-Cupra,Formentor,1.5 e-Hybrid 272 VZ,25415,1717.0,110.0,10.0,-0.5,18.2,40.0,DE VERIFICAT manual
-Cupra,Terramar,1.5 e-Hybrid 272 VZ,21117,1904.0,110.0,10.0,-2.5,18.2,50.0,DE VERIFICAT manual
-Audi,A3,40 TFSI e 204,19952,1675.0,110.0,8.0,-3.9,0.0,37.5,DE VERIFICAT manual
-Audi,A3,45 TFSI e 272,19952,1675.0,110.0,8.0,-2.1,18.2,50.0,DE VERIFICAT manual
-Audi,Q3,45 TFSI e 245,3336,1900.0,130.0,45.0,-6.1,-15.4,-28.9,DE VERIFICAT manual
-Audi,A5,e-hybrid quattro 299,10307,2160.0,185.0,59.0,-8.1,0.0,-74.6,DE VERIFICAT manual
-Audi,Q5,e-hybrid quattro 299,10550,2150.0,185.0,59.0,-0.2,0.0,-67.8,DE VERIFICAT manual
-Audi,A6,50 TFSI e quattro 299,7949,2205.0,185.0,53.0,-5.4,0.0,-39.6,DE VERIFICAT manual
-Audi,A7,55 TFSI e quattro 367,383,2140.0,195.0,35.0,0.0,-5.1,-2.9,OK
-Audi,Q7,55 TFSI e quattro 394,4491,2460.0,250.0,31.0,1.4,0.0,71.0,DE VERIFICAT manual
-Audi,Q8,55 TFSI e quattro 394,6439,2490.0,250.0,34.0,0.6,0.0,70.6,DE VERIFICAT manual
-Audi,A8,60 TFSI e quattro 462,755,2385.0,250.0,44.0,0.0,0.0,-4.5,OK
-BMW,Seria 2 Active Tourer,225e xDrive,3151,1900.0,100.0,20.0,-2.9,10.0,-15.0,DE VERIFICAT manual
-BMW,Seria 2 Active Tourer,230e xDrive,379,1920.0,110.0,20.0,-2.9,18.2,-10.0,DE VERIFICAT manual
-BMW,Seria 3,320e,203,1845.0,120.0,34.0,-1.6,0.0,-14.7,DE VERIFICAT manual
-BMW,Seria 3,330e,34859,2140.0,140.0,22.0,-13.8,-3.6,-13.6,DE VERIFICAT manual
-BMW,Seria 3,330e xDrive Touring,34859,2140.0,140.0,22.0,-7.7,-3.6,9.1,DE VERIFICAT manual
-BMW,Seria 5,530e,11025,2140.0,140.0,18.0,-3.5,0.0,-5.6,OK
-BMW,Seria 5,550e xDrive,6163,2285.0,230.0,21.0,-0.9,0.0,0.0,OK
-BMW,X1,25e xDrive,32515,1930.0,100.0,19.0,-1.8,0.0,10.5,DE VERIFICAT manual
-BMW,X1,30e xDrive,32675,1930.0,100.0,19.0,-0.8,10.0,15.8,DE VERIFICAT manual
-BMW,X3,30e xDrive,23737,2140.0,140.0,23.0,-3.0,0.0,8.7,DE VERIFICAT manual
-BMW,X5,50e xDrive,14881,2495.0,230.0,21.0,0.0,0.0,38.1,DE VERIFICAT manual
-BMW,Seria 7,750e xDrive,708,2455.0,230.0,25.0,4.5,0.0,16.0,DE VERIFICAT manual
-Mercedes-Benz,Clasa A,A250e,32272,1775.0,120.0,23.0,-5.4,0.0,-26.1,DE VERIFICAT manual
-Mercedes-Benz,Clasa B,B250e,1857,1755.0,120.0,20.0,-1.1,0.0,0.0,OK
-Mercedes-Benz,CLA,250e Coupé,6478,1750.0,120.0,20.0,-2.6,0.0,-20.0,DE VERIFICAT manual
-Mercedes-Benz,Clasa C,C300e,16921,2325.0,150.0,13.0,-11.2,0.0,7.7,DE VERIFICAT manual
-Mercedes-Benz,Clasa C,C300de,23479,2395.0,145.0,12.0,-10.9,0.0,8.3,DE VERIFICAT manual
-Mercedes-Benz,Clasa E,E300e,8100,2210.0,150.0,14.0,-1.1,0.0,0.0,OK
-Mercedes-Benz,Clasa E,E300de 4MATIC,10483,2370.0,145.0,15.0,-3.6,0.0,0.0,OK
-Mercedes-Benz,GLA,250e,14435,1810.0,120.0,24.0,-1.9,0.0,-8.3,DE VERIFICAT manual
-Mercedes-Benz,GLB,250e,132,1765.0,140.0,178.0,4.8,-14.3,-86.0,DE VERIFICAT manual
-Mercedes-Benz,GLC,300e 4MATIC,31198,2395.0,145.0,13.0,-6.3,3.4,15.4,DE VERIFICAT manual
-Mercedes-Benz,GLE,400e 4MATIC,7872,2780.0,330.0,31.0,-7.7,-43.9,-25.8,DE VERIFICAT manual
-Mercedes-Benz,Clasa S,S580e,481,2470.0,270.0,20.0,0.2,0.0,5.0,OK
-Volvo,XC60,T6 AWD Recharge 350,36033,2150.0,186.0,24.0,-0.7,0.0,-8.3,DE VERIFICAT manual
-Volvo,XC60,T8 AWD Recharge 455,48085,2150.0,186.0,25.0,0.7,22.6,-4.0,OK
-Volvo,XC90,T8 AWD Recharge 455,18534,2297.0,228.0,32.0,3.4,0.0,-9.4,DE VERIFICAT manual
-Volvo,S60,T8 AWD Recharge 455,87,2039.0,228.0,16.0,-1.2,0.0,25.0,DE VERIFICAT manual
-Volvo,V60,T6 AWD Recharge 350,9533,2064.0,186.0,18.0,0.0,0.0,11.1,DE VERIFICAT manual
-Volvo,S90,T8 AWD Recharge 455,77,2119.0,228.0,18.0,1.2,0.0,16.7,DE VERIFICAT manual
-Peugeot,308,Hybrid 136 e-DCS6,4947,1734.0,110.0,29.0,-20.5,-9.1,293.1,DE VERIFICAT manual
-Peugeot,308,Hybrid 180 e-EAT8 PHEV,4946,1734.0,110.0,29.0,-2.9,0.0,-10.3,DE VERIFICAT manual
-Peugeot,308,Hybrid 225 e-EAT8 PHEV,4923,1734.0,110.0,29.0,-2.1,20.9,-6.9,OK
-Peugeot,408,Hybrid 225 e-EAT8 PHEV,3091,1781.0,132.0,31.0,-2.1,0.8,-12.9,DE VERIFICAT manual
-Peugeot,3008,Hybrid 136 e-DCS6,5826,1953.0,110.0,20.0,-18.3,-9.1,510.0,DE VERIFICAT manual
-Peugeot,3008,Hybrid4 300 PHEV (gen2),147,1838.0,133.0,28.0,2.0,10.5,3.6,OK
-Peugeot,508,Hybrid 225 e-EAT8 PHEV,1512,1846.0,133.0,34.0,-6.3,0.0,-26.5,DE VERIFICAT manual
-Peugeot,508,PSE Hybrid4 360 PHEV,859,1846.0,133.0,35.0,1.6,10.5,2.9,OK
-Citroen,C5 Aircross,Hybrid 136 e-DCS6,2363,1845.0,133.0,33.0,-14.4,-24.8,275.8,DE VERIFICAT manual
-Citroen,C5 Aircross,Hybrid 225 e-EAT8 PHEV,2343,1845.0,133.0,33.0,-1.4,0.0,-3.0,OK
-Citroen,C5 X,Hybrid 225 e-EAT8 PHEV,627,1797.0,132.0,30.0,-0.4,0.8,0.0,OK
-DS,DS4,E-Tense 225 PHEV,978,1728.0,132.0,33.0,-0.3,0.8,-21.2,DE VERIFICAT manual
-DS,DS7,E-Tense 300 4x4 PHEV,5076,1835.0,133.0,32.0,2.7,10.5,3.1,OK
-DS,DS9,E-Tense 250 PHEV,137,1939.0,147.0,28.0,-6.4,0.0,-7.1,DE VERIFICAT manual
-Opel,Astra,Plug-in Hybrid 180,3263,1717.0,110.0,29.0,-2.3,0.0,-13.8,DE VERIFICAT manual
-Opel,Astra,Hybrid 136 e-DCS6,3264,1717.0,110.0,29.0,-20.0,-9.1,300.0,DE VERIFICAT manual
-Opel,Grandland,Plug-in Hybrid 225,2318,1971.0,110.0,20.0,-7.9,20.9,55.0,DE VERIFICAT manual
-Opel,Grandland,Hybrid 136 e-DCS6,2305,1971.0,110.0,20.0,-17.9,-9.1,515.0,DE VERIFICAT manual
-Jeep,Renegade,4xe 190 PHEV,2732,1845.0,96.0,48.0,-4.1,0.0,2.1,OK
-Jeep,Compass,4xe 240 PHEV,3022,1935.0,132.0,49.0,-3.9,0.0,-4.1,OK
-Jeep,Wrangler,4xe 380 PHEV,993,2493.0,200.0,94.0,-3.1,0.0,-16.0,DE VERIFICAT manual
+VW,Multivan,1.4 eHybrid 218,6883,2341.0,130.0,20.0,0.0,-15.4,0.0,OK
+Skoda,Octavia,1.4 iV PHEV 204,931,1387.0,110.0,113.0,0.1,0.0,0.0,OK
+Skoda,Superb,1.5 iV PHEV 204,11773,1854.0,110.0,9.0,-3.7,0.0,0.0,OK
+Skoda,Kodiaq,1.5 iV PHEV 204,23205,1917.0,110.0,11.0,-1.5,0.0,0.0,OK
+Seat,Leon,1.5 e-Hybrid 204,5028,1708.0,110.0,9.0,-5.5,0.0,0.0,OK
+Cupra,Leon,1.5 e-Hybrid 272 VZ,17302,1720.0,110.0,9.0,-3.7,18.2,0.0,OK
+Cupra,Formentor,1.5 e-Hybrid 272 VZ,25027,1717.0,110.0,10.0,-0.5,18.2,0.0,OK
+Cupra,Terramar,1.5 e-Hybrid 272 VZ,20835,1904.0,110.0,10.0,-2.5,18.2,0.0,OK
+Audi,A3,40 TFSI e 204,19641,1675.0,110.0,8.0,-3.9,0.0,0.0,OK
+Audi,A3,45 TFSI e 272,19641,1675.0,110.0,8.0,-2.1,18.2,0.0,OK
+Audi,Q3,45 TFSI e 245,3275,1900.0,130.0,44.0,-6.1,-15.4,2.3,DE VERIFICAT manual
+Audi,A5,e-hybrid quattro 299,7862,2160.0,185.0,59.0,0.0,0.0,0.0,OK
+Audi,Q5,e-hybrid quattro 299,5811,2225.0,185.0,66.0,-3.6,0.0,-10.6,DE VERIFICAT manual
+Audi,A6,50 TFSI e quattro 299,4217,2225.0,185.0,59.0,-6.3,0.0,-10.2,DE VERIFICAT manual
+Audi,A7,55 TFSI e quattro 367,379,2140.0,195.0,35.0,0.0,-5.1,-2.9,OK
+Audi,Q7,55 TFSI e quattro 394,4258,2460.0,250.0,31.0,1.4,0.0,0.0,OK
+Audi,Q8,55 TFSI e quattro 394,6159,2490.0,250.0,34.0,0.6,0.0,0.0,OK
+Audi,A8,60 TFSI e quattro 462,662,2385.0,250.0,43.0,0.0,0.0,-2.3,OK
+BMW,Seria 2 Active Tourer,225e xDrive,3017,1900.0,100.0,20.0,-2.9,10.0,0.0,OK
+BMW,Seria 2 Active Tourer,230e xDrive,366,1920.0,110.0,20.0,-2.9,18.2,-10.0,DE VERIFICAT manual
+BMW,Seria 3,320e,203,1845.0,120.0,34.0,-1.6,0.0,0.0,OK
+BMW,Seria 3,330e,31668,2140.0,140.0,22.0,0.0,-3.6,0.0,OK
+BMW,Seria 3,330e xDrive Touring,31668,2140.0,140.0,22.0,-7.7,-3.6,9.1,DE VERIFICAT manual
+BMW,Seria 5,530e,10317,2140.0,140.0,17.0,-3.5,0.0,0.0,OK
+BMW,Seria 5,550e xDrive,5433,2285.0,230.0,21.0,-0.9,0.0,0.0,OK
+BMW,X1,25e xDrive,29981,1930.0,100.0,18.0,-1.8,0.0,5.6,OK
+BMW,X1,30e xDrive,30133,1930.0,100.0,18.0,-0.8,10.0,5.6,OK
+BMW,X3,30e xDrive,20523,2140.0,140.0,22.0,-3.0,0.0,13.6,DE VERIFICAT manual
+BMW,X5,50e xDrive,14529,2495.0,230.0,21.0,0.0,0.0,0.0,OK
+BMW,Seria 7,750e xDrive,642,2455.0,230.0,25.0,4.5,0.0,0.0,OK
+Mercedes-Benz,Clasa A,A250e,26583,1775.0,120.0,21.0,-5.4,0.0,9.5,DE VERIFICAT manual
+Mercedes-Benz,Clasa B,B250e,1539,1755.0,120.0,19.0,-1.1,0.0,5.3,OK
+Mercedes-Benz,CLA,250e Coupé,5369,1750.0,120.0,18.0,-2.6,0.0,11.1,DE VERIFICAT manual
+Mercedes-Benz,Clasa C,C300e,14466,2325.0,150.0,13.0,0.0,0.0,7.7,OK
+Mercedes-Benz,Clasa C,C300de,23336,2395.0,145.0,12.0,0.0,0.0,8.3,DE VERIFICAT manual
+Mercedes-Benz,Clasa E,E300e,6714,2190.0,150.0,14.0,-0.2,0.0,0.0,OK
+Mercedes-Benz,Clasa E,E300de 4MATIC,9207,2325.0,145.0,15.0,-1.7,0.0,0.0,OK
+Mercedes-Benz,GLA,250e,11729,1810.0,120.0,24.0,-1.9,0.0,-8.3,DE VERIFICAT manual
+Mercedes-Benz,GLB,250e,132,1765.0,140.0,178.0,4.8,-14.3,0.0,OK
+Mercedes-Benz,GLC,300e 4MATIC,28709,2395.0,145.0,13.0,-6.3,3.4,0.0,DE VERIFICAT manual
+Mercedes-Benz,GLE,400e 4MATIC,5819,2780.0,330.0,28.0,-7.7,-43.9,10.7,DE VERIFICAT manual
+Mercedes-Benz,Clasa S,S580e,343,2470.0,270.0,19.0,0.2,0.0,10.5,DE VERIFICAT manual
+Volvo,XC60,T6 AWD Recharge 350,32186,2150.0,186.0,24.0,-0.7,0.0,-8.3,DE VERIFICAT manual
+Volvo,XC60,T8 AWD Recharge 455,42761,2150.0,186.0,24.0,0.7,22.6,0.0,OK
+Volvo,XC90,T8 AWD Recharge 455,15947,2297.0,228.0,32.0,3.4,0.0,-9.4,DE VERIFICAT manual
+Volvo,S60,T8 AWD Recharge 455,83,2039.0,228.0,16.0,-1.2,0.0,0.0,OK
+Volvo,V60,T6 AWD Recharge 350,8990,2064.0,186.0,18.0,0.0,0.0,0.0,OK
+Volvo,S90,T8 AWD Recharge 455,74,2119.0,228.0,18.0,1.2,0.0,0.0,OK
+Peugeot,308,Hybrid 136 e-DCS6,776,1750.0,110.0,51.0,-0.9,-9.1,123.5,DE VERIFICAT manual
+Peugeot,308,Hybrid 180 e-EAT8 PHEV,4170,1734.0,110.0,29.0,-2.9,0.0,0.0,OK
+Peugeot,308,Hybrid 225 e-EAT8 PHEV,4170,1734.0,110.0,29.0,-2.1,20.9,-6.9,OK
+Peugeot,408,Hybrid 225 e-EAT8 PHEV,2764,1781.0,132.0,31.0,-2.1,0.8,0.0,OK
+Peugeot,3008,Hybrid 136 e-DCS6,1541,1953.0,110.0,56.0,0.0,-9.1,117.9,DE VERIFICAT manual
+Peugeot,3008,Hybrid4 300 PHEV (gen2),144,1838.0,133.0,28.0,2.0,10.5,3.6,OK
+Peugeot,508,Hybrid 225 e-EAT8 PHEV,1506,1846.0,133.0,34.0,-6.3,0.0,0.0,DE VERIFICAT manual
+Peugeot,508,PSE Hybrid4 360 PHEV,853,1846.0,133.0,35.0,1.6,10.5,2.9,OK
+Citroen,C5 Aircross,Hybrid 136 e-DCS6,385,1949.0,110.0,57.0,-5.3,-9.1,117.5,DE VERIFICAT manual
+Citroen,C5 Aircross,Hybrid 225 e-EAT8 PHEV,1978,1845.0,133.0,33.0,-1.4,0.0,-3.0,OK
+Citroen,C5 X,Hybrid 225 e-EAT8 PHEV,621,1797.0,132.0,30.0,-0.4,0.8,0.0,OK
+DS,DS4,E-Tense 225 PHEV,976,1728.0,132.0,33.0,-0.3,0.8,0.0,OK
+DS,DS7,E-Tense 300 4x4 PHEV,5069,1835.0,133.0,32.0,2.7,10.5,3.1,OK
+DS,DS9,E-Tense 250 PHEV,135,1939.0,147.0,28.0,-6.4,0.0,-7.1,DE VERIFICAT manual
+Opel,Astra,Plug-in Hybrid 180,2946,1717.0,110.0,29.0,-2.3,0.0,0.0,OK
+Opel,Astra,Hybrid 136 e-DCS6,317,1736.0,110.0,52.0,-1.1,-9.1,123.1,DE VERIFICAT manual
+Opel,Grandland,Plug-in Hybrid 225,2045,1971.0,110.0,20.0,-7.9,20.9,0.0,DE VERIFICAT manual
+Opel,Grandland,Hybrid 136 e-DCS6,310,1945.0,110.0,57.0,1.3,-9.1,115.8,DE VERIFICAT manual
+Jeep,Renegade,4xe 190 PHEV,2032,1845.0,96.0,48.0,-4.1,0.0,2.1,OK
+Jeep,Compass,4xe 240 PHEV,2938,1935.0,132.0,49.0,-3.9,0.0,-4.1,OK
+Jeep,Wrangler,4xe 380 PHEV,989,2493.0,200.0,94.0,-3.1,0.0,0.0,OK
 Jeep,Avenger,e-Hybrid 100,522,1355.0,74.0,111.0,-5.5,0.0,3.6,OK
 Fiat,600,Hybrid 100,123,1355.0,74.0,109.0,-7.7,0.0,2.8,DE VERIFICAT manual
 Fiat,500,1.0 Hybrid 70,0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire diferită)
 Fiat,Panda,1.0 Hybrid 70,71,1055.0,52.0,112.0,-3.8,-1.9,0.9,OK
-Alfa Romeo,Tonale,Hybrid 160 VGT,2308,1910.0,132.0,31.0,-21.7,-10.6,319.4,DE VERIFICAT manual
-Alfa Romeo,Tonale,Plug-In Hybrid Q4 280,2239,1910.0,132.0,31.0,-3.9,0.0,-6.5,OK
-Mazda,2 Hybrid,1.5 116,132,1190.0,68.0,92.0,-5.0,0.0,6.5,OK
-Mazda,CX-60,2.5 e-Skyactiv PHEV 327,9243,2132.0,141.0,33.0,-3.6,0.0,0.0,OK
-Mazda,MX-30,e-Skyactiv R-EV 170,1113,1853.0,55.0,21.0,-4.0,0.0,0.0,OK
+Alfa Romeo,Tonale,Hybrid 160 VGT,104,1910.0,110.0,82.0,0.0,7.3,58.5,DE VERIFICAT manual
+Alfa Romeo,Tonale,Plug-In Hybrid Q4 280,2135,1910.0,132.0,31.0,-3.9,0.0,-6.5,OK
+Mazda,2 Hybrid,1.5 116,131,1190.0,68.0,92.0,-5.0,0.0,6.5,OK
+Mazda,CX-60,2.5 e-Skyactiv PHEV 327,9188,2132.0,141.0,33.0,-3.6,0.0,0.0,OK
+Mazda,MX-30,e-Skyactiv R-EV 170,1108,1853.0,55.0,21.0,-4.0,0.0,0.0,OK
 Suzuki,Swace,1.8 Hybrid 140,89,1475.0,72.0,102.0,-5.1,0.0,1.0,OK
-Suzuki,Across,2.5 PHEV 306 AWD,579,2000.0,136.0,22.0,-3.0,0.0,0.0,OK
+Suzuki,Across,2.5 PHEV 306 AWD,536,2000.0,136.0,22.0,-3.0,0.0,0.0,OK
 Suzuki,Vitara,1.5 Full Hybrid 116 AGS,1631,1255.0,95.0,119.0,3.2,-21.1,1.7,OK
-Suzuki,S-Cross,1.5 Full Hybrid 116 AGS,1598,1280.0,95.0,121.0,2.7,-21.1,-2.5,OK
+Suzuki,S-Cross,1.5 Full Hybrid 116 AGS,1596,1280.0,95.0,121.0,2.7,-21.1,-2.5,OK
 Suzuki,Swift,1.2 mild Hybrid 83,558,994.0,61.0,99.0,-1.0,0.0,0.0,OK
-Land Rover,Range Rover Evoque,P300e PHEV,3914,2192.0,118.0,34.0,-4.9,24.6,-5.9,OK
-Land Rover,Discovery Sport,P300e PHEV,1537,2229.0,118.0,36.0,-2.7,24.6,0.0,OK
-Land Rover,Range Rover Sport,P460e PHEV,7377,2735.0,294.0,18.0,0.0,0.0,0.0,OK
-Land Rover,Range Rover,P460e PHEV,10168,2735.0,294.0,18.0,2.7,0.0,5.6,OK
-Land Rover,Defender,110 P400e PHEV,99,2515.0,221.0,226.0,5.4,0.0,-67.3,DE VERIFICAT manual
-Porsche,Cayenne,E-Hybrid 470,10454,2515.0,224.0,36.0,-1.6,0.0,-11.1,DE VERIFICAT manual
-Porsche,Cayenne,S E-Hybrid 519,11726,2530.0,224.0,36.0,-1.4,16.1,-8.3,DE VERIFICAT manual
-Porsche,Panamera,4 E-Hybrid 470,2953,2305.0,224.0,30.0,2.2,0.0,-16.7,DE VERIFICAT manual
-Porsche,Panamera,4S E-Hybrid 544,3348,2305.0,224.0,30.0,3.0,16.1,-10.0,DE VERIFICAT manual
+Land Rover,Range Rover Evoque,P300e PHEV,3761,2192.0,118.0,34.0,-4.9,24.6,-5.9,OK
+Land Rover,Discovery Sport,P300e PHEV,1485,2229.0,118.0,36.0,-2.7,24.6,0.0,OK
+Land Rover,Range Rover Sport,P460e PHEV,7019,2735.0,294.0,18.0,0.0,0.0,0.0,OK
+Land Rover,Range Rover,P460e PHEV,9633,2735.0,294.0,18.0,2.7,0.0,5.6,OK
+Land Rover,Defender,110 P400e PHEV,99,2515.0,221.0,226.0,5.4,0.0,0.0,OK
+Porsche,Cayenne,E-Hybrid 470,7224,2515.0,224.0,34.0,-1.6,0.0,5.9,OK
+Porsche,Cayenne,S E-Hybrid 519,8160,2530.0,224.0,35.0,-1.4,16.1,-5.7,OK
+Porsche,Panamera,4 E-Hybrid 470,2020,2305.0,224.0,26.0,2.2,0.0,15.4,DE VERIFICAT manual
+Porsche,Panamera,4S E-Hybrid 544,2313,2305.0,224.0,27.0,3.0,16.1,0.0,OK
 MG,MG3,Hybrid+ 195,401,1383.0,75.0,100.0,-6.1,0.0,0.0,DE VERIFICAT manual
 MG,ZS,Hybrid+ 196,1356,1490.0,75.0,115.0,-4.7,0.0,0.0,OK
-MG,HS,PHEV 272,20817,1930.0,105.0,14.0,-2.3,0.0,21.4,DE VERIFICAT manual
-BYD,Seal U,DM-i 218 Boost,40466,2015.0,72.0,16.0,-3.7,0.0,62.5,DE VERIFICAT manual
-BYD,Seal U,DM-i 218 Comfort,40466,2015.0,72.0,16.0,-0.2,0.0,37.5,DE VERIFICAT manual
-BYD,Seal,U DM-i AWD 324,7453,2175.0,96.0,23.0,-3.0,0.0,43.5,DE VERIFICAT manual
-Mitsubishi,Outlander,PHEV 2.4 302 4WD,5443,2195.0,100.0,19.0,-2.3,0.0,21.1,DE VERIFICAT manual
+MG,HS,PHEV 272,20471,1930.0,105.0,14.0,-2.3,0.0,0.0,OK
+BYD,Seal U,DM-i 218 Boost,40201,2015.0,72.0,16.0,-3.7,0.0,0.0,OK
+BYD,Seal U,DM-i 218 Comfort,40201,2015.0,72.0,16.0,-0.2,0.0,0.0,OK
+BYD,Seal,U DM-i AWD 324,7301,2175.0,96.0,23.0,-3.0,0.0,0.0,OK
+Mitsubishi,Outlander,PHEV 2.4 302 4WD,5322,2195.0,100.0,19.0,-2.3,0.0,0.0,OK
 Mitsubishi,Eclipse Cross,PHEV 2.4 188 4WD,2546,1975.0,72.0,46.0,0.8,0.0,0.0,OK
-Mitsubishi,ASX,1.6 HEV 143,413,1451.0,69.0,100.0,-6.7,0.0,7.0,DE VERIFICAT manual
+Mitsubishi,ASX,1.6 HEV 143,215,1373.0,103.0,133.0,-1.4,-33.0,-19.5,DE VERIFICAT manual
 Mitsubishi,Colt,1.6 HEV 143,29,1360.0,69.0,102.0,-6.8,0.0,-2.0,DE VERIFICAT manual
 Toyota,Yaris Cross,1.5 Hybrid GR SPORT 130,2866,1265.0,68.0,102.0,-5.9,8.8,4.9,OK
 Toyota,Corolla,1.8 Hybrid 140 Sedan,3861,1430.0,72.0,99.0,-4.2,0.0,3.0,OK
 Toyota,Crown,2.5 Hybrid 234 AWD,0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire diferită)
-Lexus,NX,350h FWD,6618,2065.0,136.0,22.0,-18.4,2.9,463.6,DE VERIFICAT manual
-Lexus,UX,300h FWD,23,1630.0,112.0,127.0,-4.3,0.0,-13.4,DE VERIFICAT manual
+Lexus,NX,350h FWD,158,2065.0,136.0,152.0,0.0,2.9,-18.4,DE VERIFICAT manual
+Lexus,UX,300h FWD,23,1630.0,112.0,127.0,-4.3,0.0,0.0,OK
 Renault,Clio,E-Tech full hybrid 160,567,1348.0,69.0,96.0,-4.3,15.9,-1.0,OK
-Renault,Captur,E-Tech full hybrid 160,695,1441.0,80.0,108.0,-4.2,0.0,-4.6,OK
-Dacia,Duster,Hybrid-G 150 4x4,6838,1465.0,96.0,136.0,-1.4,7.3,-13.2,DE VERIFICAT manual
+Renault,Captur,E-Tech full hybrid 160,683,1441.0,80.0,108.0,-4.2,0.0,-4.6,OK
+Dacia,Duster,Hybrid-G 150 4x4,6838,1465.0,96.0,136.0,-1.4,7.3,0.0,OK
 Hyundai,Kona,1.6 GDI Hybrid 129,969,1485.0,69.0,106.0,-6.7,11.6,5.7,DE VERIFICAT manual
 Hyundai,Bayon,1.0 T-GDI 48V mHEV 100,0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire diferită)
 Hyundai,i20,1.0 T-GDI 48V mHEV 100,4,1165.0,74.0,116.0,-5.2,0.0,-7.8,OK
 Kia,Picanto,1.0 DPi 63 (referință MAI),0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire diferită)
-Kia,Stonic,1.0 T-GDI 48V mHEV 100,2,1242.0,74.0,125.5,-5.0,0.0,-10.8,DE VERIFICAT manual
-Honda,CR-V,e:HEV 2.0 184 FWD,2247,1988.0,109.0,18.0,-13.2,0.0,694.4,DE VERIFICAT manual
+Kia,Stonic,1.0 T-GDI 48V mHEV 100,2,1242.0,74.0,125.5,-5.0,0.0,0.4,OK
+Honda,CR-V,e:HEV 2.0 184 FWD,221,1875.0,109.0,140.0,6.0,0.0,2.1,OK
 Nissan,Juke,Hybrid 143 N-Sport,134,1405.0,69.0,109.0,-3.6,0.0,-3.7,OK
 Ford,Galaxy,2.5 FHEV 190,0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire diferită)
 Ford,S-MAX,2.5 FHEV 190,0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire diferită)
-Ford,Tourneo Custom,2.5 PHEV 233,117,2457.0,111.0,44.0,-1.7,0.9,45.5,DE VERIFICAT manual
+Ford,Tourneo Custom,2.5 PHEV 233,78,2457.0,111.0,41.0,-1.7,0.9,7.3,OK
 VW,Golf Variant,1.5 eHybrid 204,0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire diferită)
 Skoda,Octavia Combi,1.4 iV PHEV 204,0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire diferită)
-Audi,Q5 Sportback,e-hybrid quattro 299,1908,2150.0,195.0,41.0,0.2,-5.1,-53.7,DE VERIFICAT manual
-BMW,X2,25e xDrive,151,1780.0,110.0,129.0,8.1,-9.1,-82.2,DE VERIFICAT manual
-BMW,Seria 5 Touring,530e,11025,2140.0,140.0,18.0,-0.2,0.0,5.6,OK
-Mercedes-Benz,GLC Coupé,300e 4MATIC,6,2456.0,185.0,13.0,-7.8,-18.9,15.4,DE VERIFICAT manual
-Mercedes-Benz,Clasa E All-Terrain,E300de 4MATIC,10483,2370.0,145.0,15.0,-1.9,0.0,13.3,DE VERIFICAT manual
-Volvo,V90,T6 AWD Recharge 350,2961,2075.0,186.0,19.0,1.9,0.0,10.5,DE VERIFICAT manual
-Peugeot,5008,Hybrid 136 e-DCS6,2600,2068.0,110.0,23.0,-18.8,-9.1,447.8,DE VERIFICAT manual
+Audi,Q5 Sportback,e-hybrid quattro 299,1882,2150.0,195.0,41.0,0.2,-5.1,0.0,OK
+BMW,X2,25e xDrive,139,1780.0,110.0,129.0,0.0,-9.1,0.0,OK
+BMW,Seria 5 Touring,530e,10317,2140.0,140.0,17.0,-0.2,0.0,11.8,DE VERIFICAT manual
+Mercedes-Benz,GLC Coupé,300e 4MATIC,6,2456.0,185.0,13.0,-7.8,-18.9,0.0,DE VERIFICAT manual
+Mercedes-Benz,Clasa E All-Terrain,E300de 4MATIC,9207,2325.0,145.0,15.0,0.0,0.0,0.0,OK
+Volvo,V90,T6 AWD Recharge 350,2955,2075.0,186.0,19.0,1.9,0.0,0.0,OK
+Peugeot,5008,Hybrid 136 e-DCS6,432,2068.0,110.0,63.0,0.0,-9.1,100.0,DE VERIFICAT manual
 Peugeot,208,Hybrid 100 e-DCS6,312,1295.0,74.0,101.0,-5.9,0.0,5.9,OK
 Peugeot,2008,Hybrid 136 e-DCS6,474,1372.0,100.0,111.0,-1.5,0.0,3.6,OK
 Citroen,C3,Hybrid 100 e-DCS6,74,1327.0,74.0,114.0,-6.9,0.0,-3.5,DE VERIFICAT manual
@@ -228,24 +228,24 @@ Fiat,Tipo,1.5 Hybrid 130,0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire dif
 Fiat,500X,1.5 Hybrid 130,0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire diferită)
 Alfa Romeo,Junior,Ibrida 136 e-DCS6,187,1380.0,100.0,109.0,0.4,0.0,6.4,OK
 Jeep,Avenger,e-Hybrid 145 4xe,11,1530.0,100.0,123.0,-7.2,7.0,3.3,DE VERIFICAT manual
-Mazda,3,e-Skyactiv X 186 mHEV,1056,1492.0,137.0,138.0,-5.6,0.0,-10.1,DE VERIFICAT manual
-Mazda,CX-30,e-Skyactiv X 186 mHEV,575,1507.0,137.0,139.0,-2.8,0.0,-5.8,OK
-Toyota,Land Cruiser,2.8 D mHEV 205,4,2525.0,151.0,284.0,-7.7,-0.7,-16.2,DE VERIFICAT manual
+Mazda,3,e-Skyactiv X 186 mHEV,1013,1492.0,137.0,138.0,-5.6,0.0,0.0,OK
+Mazda,CX-30,e-Skyactiv X 186 mHEV,574,1507.0,137.0,139.0,-2.8,0.0,-5.8,OK
+Toyota,Land Cruiser,2.8 D mHEV 205,3,2525.0,151.0,284.0,-7.7,-0.7,0.0,DE VERIFICAT manual
 Toyota,Hilux,2.8 D mHEV 204,0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire diferită)
-Lexus,LBX,Morizo RR 305,86,1355.0,67.0,104.0,7.0,207.5,29.8,DE VERIFICAT manual
+Lexus,LBX,Morizo RR 305,86,1355.0,67.0,104.0,7.0,207.5,0.0,DE VERIFICAT manual
 Renault,Kangoo,E-Tech full hybrid 160,0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire diferită)
 Nissan,Qashqai,mHEV 1.3 DIG-T 158,621,1465.0,116.0,144.0,0.0,0.0,0.0,OK
 Suzuki,Ignis,1.2 mild Hybrid 83 4x4,46,995.0,61.0,122.0,-6.0,0.0,-7.4,OK
 Honda,HR-V,e:HEV 1.5 131 Advance,239,1452.0,79.0,122.0,-3.9,0.0,1.6,OK
-Kia,Sportage,1.6 T-GDI mHEV 180 DCT,10938,1905.0,118.0,27.0,-19.2,11.9,463.0,DE VERIFICAT manual
-Hyundai,Tucson,1.6 T-GDI mHEV 160 DCT,23133,1825.0,118.0,25.0,-14.8,0.0,500.0,DE VERIFICAT manual
-VW,Golf,1.5 eTSI mHEV 150 DSG,8253,1662.0,130.0,7.0,-18.5,-15.4,1671.4,DE VERIFICAT manual
+Kia,Sportage,1.6 T-GDI mHEV 180 DCT,2160,1649.0,118.0,141.0,15.5,11.9,7.8,DE VERIFICAT manual
+Hyundai,Tucson,1.6 T-GDI mHEV 160 DCT,3449,1650.0,118.0,142.0,10.6,0.0,5.6,DE VERIFICAT manual
+VW,Golf,1.5 eTSI mHEV 150 DSG,228,1373.0,110.0,122.0,21.0,0.0,1.6,DE VERIFICAT manual
 VW,T-Roc,1.5 eTSI mHEV 150 DSG,5,1474.0,110.0,127.0,-5.4,0.0,3.9,OK
 Skoda,Kamiq,1.5 TSI mHEV 150 DSG,0,,,,,,,NEGĂSIT în EEA (model non-UE sau denumire diferită)
-Audi,A3,35 TFSI mHEV 150 S tronic,19951,1675.0,110.0,8.0,-16.7,0.0,1475.0,DE VERIFICAT manual
+Audi,A3,35 TFSI mHEV 150 S tronic,310,1400.0,110.0,121.0,19.6,0.0,4.1,DE VERIFICAT manual
 BMW,Seria 1,120 mHEV 170,345,1500.0,115.0,124.0,-0.3,8.7,7.3,OK
-BMW,Seria 3,320d mHEV 190,371,1965.0,145.0,154.0,-15.0,-3.4,-19.5,DE VERIFICAT manual
-Mercedes-Benz,Clasa C,C200 mHEV 204,502,1910.0,150.0,165.0,-12.3,0.0,-10.3,DE VERIFICAT manual
+BMW,Seria 3,320d mHEV 190,371,1965.0,145.0,154.0,0.0,-3.4,0.0,OK
+Mercedes-Benz,Clasa C,C200 mHEV 204,501,1910.0,150.0,165.0,0.0,0.0,0.0,OK
 Mercedes-Benz,Clasa E,E200 mHEV 204,105,1880.0,150.0,157.0,-1.3,0.0,-3.8,OK
-Volvo,XC60,B4 mHEV 197,36038,2150.0,186.0,24.0,-12.3,-22.0,583.3,DE VERIFICAT manual
-Volvo,XC40,B3 mHEV 163,338,1688.0,120.0,151.0,-0.2,0.0,5.3,OK
+Volvo,XC60,B4 mHEV 197,3851,2150.0,186.0,68.0,0.0,-22.0,141.2,DE VERIFICAT manual
+Volvo,XC40,B3 mHEV 163,336,1688.0,120.0,151.0,-0.2,0.0,5.3,OK
