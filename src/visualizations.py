@@ -113,9 +113,12 @@ def plot_power_profile(r: SimulationResult, cycle_kmh: np.ndarray) -> go.Figure:
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.06,
                         subplot_titles=("Profil de viteză", "Puteri MCI și mașină electrică",
                                         "Flux de putere prin baterie"))
+    th = _theme_colors()
     fig.add_trace(go.Scatter(x=t, y=cycle_kmh, name="Viteză",
-                             line=dict(color=COLORS["ink"], width=1.5),
-                             fill="tozeroy", fillcolor="rgba(15,23,42,0.06)"), row=1, col=1)
+                             line=dict(color=th["ink"], width=1.5),
+                             fill="tozeroy",
+                             fillcolor=("rgba(229,229,234,0.10)" if _DARK
+                                        else "rgba(15,23,42,0.06)")), row=1, col=1)
     fig.add_trace(go.Scatter(x=t, y=r.P_engine_W / 1000, name="Motor termic",
                              line=dict(color=COLORS["danger"], width=1.2)), row=2, col=1)
     fig.add_trace(go.Scatter(x=t, y=r.P_EM_W / 1000, name="Mașină electrică",
@@ -144,7 +147,7 @@ def plot_bsfc_map(p: VehicleParams, r: SimulationResult | None = None) -> go.Fig
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=P_range / 1000, y=bsfc, mode="lines", name="Curbă BSFC",
-        line=dict(color=COLORS["ink"], width=2.5),
+        line=dict(color=_theme_colors()["ink"], width=2.5),
         hovertemplate="P=%{x:.0f} kW · BSFC=%{y:.0f} g/kWh<extra></extra>",
     ))
     # Zona optimă (BSFC minim +5%)
@@ -195,7 +198,8 @@ def plot_tco_breakdown(tco_data: dict[str, dict]) -> go.Figure:
     archs = list(tco_data.keys())
     comp_labels = [("price", "Achiziție"), ("cost_energy", "Energie"),
                    ("maintenance", "Mentenanță"), ("insurance", "Asigurare/taxe")]
-    comp_colors = ["#3C3C43", "#FF9500", "#007AFF", "#AEAEB2"]
+    comp_colors = [("#8E8E93" if _DARK else "#3C3C43"),
+                   "#FF9500", "#007AFF", "#AEAEB2"]
     fig = go.Figure()
     for (key, label), color in zip(comp_labels, comp_colors):
         fig.add_trace(go.Bar(name=label, x=[a.replace("_", "-").title() for a in archs],
@@ -230,7 +234,7 @@ def plot_sensitivity_tornado(results: list[dict], baseline_value: float,
     fig.add_trace(go.Bar(y=names, x=highs, orientation="h", name="Parametru +20%",
                          marker_color="#FF9500",
                          hovertemplate="%{y}: %{x:+,.0f}<extra>+20%</extra>"))
-    fig.add_vline(x=0, line_color=COLORS["ink"], line_width=1.5)
+    fig.add_vline(x=0, line_color=_theme_colors()["ink"], line_width=1.5)
     fig.update_layout(**_LAYOUT_BASE, barmode="overlay",
                       title=f"Analiza de sensibilitate — {metric_label} "
                             f"(referință: {baseline_value:,.0f})".replace(",", " "),
@@ -394,7 +398,7 @@ def plot_cycle_live(r: SimulationResult, speed_kmh: np.ndarray,
                                      hoverinfo="skip",
                                      line=dict(color="#cbd5e1", width=1,
                                                dash="dot")), row=1, col=1)
-            fig.add_annotation(x=(x0 + x1) / 2, y=1.05, yref="y domain",
+            fig.add_annotation(x=(x0 + x1) / 2, y=0.94, yref="y domain",
                                xref="x", text=name, showarrow=False,
                                font=dict(size=9, color="#8E8E93"), row=1, col=1)
 
@@ -437,9 +441,9 @@ def plot_cycle_live(r: SimulationResult, speed_kmh: np.ndarray,
         height=640,
         title=dict(text=title, x=0.01, y=0.98,
                    font=dict(size=15, color=th["font"])),
-        legend=dict(orientation="h", y=-0.10, x=0.5, xanchor="center",
+        legend=dict(orientation="h", y=-0.40, x=0.5, xanchor="center",
                     font=dict(size=10)),
-        margin=dict(l=55, r=24, t=64, b=60),
+        margin=dict(l=55, r=24, t=64, b=170),
         updatemenus=[dict(
             type="buttons", direction="left",
             x=0.99, y=1.10, xanchor="right", yanchor="top",
@@ -458,8 +462,8 @@ def plot_cycle_live(r: SimulationResult, speed_kmh: np.ndarray,
                                         mode="immediate")]),
             ])],
         sliders=[dict(
-            active=0, x=0.0, y=1.16, xanchor="left", yanchor="top",
-            len=0.72, font=dict(color=th["ink"]),
+            active=0, x=0.0, y=-0.20, xanchor="left", yanchor="top",
+            len=1.0, font=dict(size=9, color=th["ink"]),
             bordercolor=th["grid"], tickcolor=th["ink"],
             currentvalue=dict(prefix="t ≈ ", suffix=" s",
                               font=dict(size=11, color=th["ink"])),

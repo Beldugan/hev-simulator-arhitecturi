@@ -169,9 +169,14 @@ _DARK_CSS = """
     div[data-testid="stExpander"] {
         background: #1C1C1E; border-color: rgba(84,84,88,.65);
     }
+    div[data-testid="stExpander"] details,
+    div[data-testid="stExpander"] summary {
+        background: #1C1C1E !important;
+    }
+    div[data-testid="stExpander"] summary:hover { background: #2C2C2E !important; }
     div[data-testid="stExpander"] summary p,
-    div[data-testid="stExpander"] summary span { color: #FFFFFF; }
-    div[data-testid="stExpander"] details { background: transparent; }
+    div[data-testid="stExpander"] summary span,
+    div[data-testid="stExpander"] summary svg { color: #FFFFFF; fill: #FFFFFF; }
 
     [data-baseweb="select"] > div {
         background: #1C1C1E !important; color: #F2F2F7 !important;
@@ -593,6 +598,11 @@ def page_simulare():
         "Sursă (vehicul)": c["name"], "WLTP [L/100km]": c["official_L_100km"],
         "Abatere [%]": c["deviation_pct"], "Referință": c["source"]}
         for c in cmpv["comparisons"]]), use_container_width=True, hide_index=True)
+        st.caption("**Doar Dacia Bigster** este vehiculul modelat — abaterea față "
+                   "de el măsoară acuratețea modelului. Symbioz și Corolla sunt "
+                   "vehicule diferite (masă, motor, sistem hibrid diferite) și "
+                   "servesc exclusiv la plasarea rezultatului într-un interval de "
+                   "plauzibilitate al clasei de full-hybrid-uri, nu la validare.")
 
 # ----------------------------------------------------------------------
 def page_sensibilitate():
