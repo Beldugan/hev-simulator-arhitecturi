@@ -252,6 +252,12 @@ with _btn_theme:
 #  Încărcarea ciclurilor (cache)
 # ======================================================================
 @st.cache_data
+def load_vehicle_db() -> pd.DataFrame:
+    here = os.path.dirname(os.path.abspath(__file__))
+    return pd.read_csv(os.path.join(here, "data", "vehicles_db.csv"))
+
+
+@st.cache_data
 def load_cycles() -> dict:
     here = os.path.dirname(os.path.abspath(__file__))
     dd = os.path.join(here, "data")
@@ -372,7 +378,9 @@ with st.sidebar:
     st.markdown("# Simulator arhitecturi HEV")
     st.markdown("## Configurare date de intrare")
     mode = st.selectbox("Sursa datelor",
-                        ["Preset: Bigster (lucrare)", "Introducere manuală",
+                        ["Preset: Bigster (lucrare)",
+                         "Bază de date (marcă → model)",
+                         "Introducere manuală",
                          "Fișier încărcat / URL"])
     strategy = st.selectbox("Strategie EMS",
                             options=["rule_based", "ecms", "dp"],
@@ -384,6 +392,40 @@ with st.sidebar:
                      expanded=(mode != "Preset: Bigster (lucrare)")):
         if mode == "Introducere manuală":
             p_active = params_from_widgets()
+        elif mode == "Bază de date (marcă → model)":
+            vdb = load_vehicle_db()
+            sel_marca = st.selectbox("Marcă", sorted(vdb["marca"].unique()))
+            sub = vdb[vdb["marca"] == sel_marca]
+            sel_model = st.selectbox("Model", sorted(sub["model"].unique()))
+            sub2 = sub[sub["model"] == sel_model]
+            sel_var = st.selectbox("Variantă", list(sub2["varianta"]))
+            vrow = sub2[sub2["varianta"] == sel_var].iloc[0]
+            p_active = VehicleParams(
+                name=f'{vrow["marca"]} {vrow["model"]} {vrow["varianta"]}',
+                mass_kg=float(vrow["mass_kg"]), Cd=float(vrow["Cd"]),
+                Af=float(vrow["Af"]),
+                P_ICE_max_kW=float(vrow["P_ICE_max_kW"]),
+                eta_th_peak=float(vrow["eta_th_peak"]),
+                P_EM_max_kW=float(vrow["P_EM_max_kW"]),
+                bat_energy_kWh=float(vrow["bat_energy_kWh"]),
+                price_EUR=float(vrow["price_EUR"]),
+            )
+            st.caption(
+                f'**{vrow["tip"]}** · arhitectura reală: '
+                f'**{ARCH_LABELS.get(vrow["arhitectura"], vrow["arhitectura"])}** · '
+                f'CO₂ WLTP oficial: **{vrow["co2_wltp_g_km"]} g/km** '
+                f'({vrow["consum_wltp_L_100km"]} L/100 km'
+                + (", ponderat" if vrow["tip"] == "PHEV" else "") + ")")
+            st.caption(f'Sursă: {vrow["sursa"]} · câmpuri estimate: '
+                       f'{str(vrow["estimari"]).replace(";", ", ")}')
+            if vrow["tip"] == "PHEV":
+                st.caption("PHEV: simularea rulează în regim charge-sustaining "
+                           "(baterie descărcată la nivelul țintă), nu în modul "
+                           "electric din priză.")
+            elif vrow["tip"] == "MHEV":
+                st.caption("MHEV: electrificare ușoară — mașina electrică mică "
+                           "limitează rularea pur electrică; util ca referință "
+                           "de tip baseline.")
         elif mode == "Fișier încărcat / URL":
             up = st.file_uploader("Fișier parametri (JSON sau CSV)",
                                   type=["json", "csv"])

@@ -90,3 +90,19 @@ de modificarea codului.
 ## Licență
 
 [MIT](LICENSE) — © 2026 Adrian Mircea Beldugan.
+
+## Baza de date de vehicule (`data/vehicles_db.csv`)
+
+250 de vehicule electrificate de pe piața UE (84 HEV, 120 PHEV, 46 MHEV; 31 de
+mărci), selectabile în aplicație din **Sursa datelor → Bază de date
+(marcă → model)**. Câmpuri: masă în ordine de mers, Cd, Af, puteri MCI/EM,
+capacitate baterie, preț de listă orientativ, CO₂ și consum WLTP oficiale,
+topologia reală (serie / paralel / serie-paralel) și sursa per vehicul.
+
+Metodologie: valorile provin din fișele tehnice ale constructorilor;
+câmpurile care nu se publică oficial (Cd·Af la unele modele, randamentul
+termic, CO₂ ponderat la unele PHEV) sunt estimări de segment, marcate explicit
+în coloana `estimari`. Auditul contra setului EEA de monitorizare CO₂
+(Regulamentul UE 2019/631) se face local cu `tools/verify_eea.py` — vezi
+instrucțiunile din antetul scriptului (setul EEA are milioane de rânduri și se
+descarcă separat).
