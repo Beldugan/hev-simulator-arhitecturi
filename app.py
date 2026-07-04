@@ -258,6 +258,19 @@ def load_vehicle_db() -> pd.DataFrame:
 
 
 @st.cache_data
+def load_eea_report() -> pd.DataFrame | None:
+    """Raportul de audit EEA (produs de tools/verify_eea.py), dacă există."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(here, "data", "eea_verification_report.csv")
+    if os.path.exists(path):
+        try:
+            return pd.read_csv(path)
+        except Exception:
+            return None
+    return None
+
+
+@st.cache_data
 def load_cycles() -> dict:
     here = os.path.dirname(os.path.abspath(__file__))
     dd = os.path.join(here, "data")
@@ -418,6 +431,26 @@ with st.sidebar:
                 + (", ponderat" if vrow["tip"] == "PHEV" else "") + ")")
             st.caption(f'Sursă: {vrow["sursa"]} · câmpuri estimate: '
                        f'{str(vrow["estimari"]).replace(";", ", ")}')
+            eea_rep = load_eea_report()
+            if eea_rep is not None:
+                hit = eea_rep[(eea_rep["marca"] == vrow["marca"]) &
+                              (eea_rep["model"] == vrow["model"]) &
+                              (eea_rep["varianta"] == vrow["varianta"])]
+                if len(hit):
+                    h = hit.iloc[0]
+                    if str(h["status"]) == "OK":
+                        st.success(f'Audit EEA: **OK** · abateri față de mediana '
+                                   f'EEA — masă {h.get("abatere_masa_pct", "–")}%, '
+                                   f'CO₂ {h.get("abatere_co2_pct", "–")}% '
+                                   f'({int(h["eea_inregistrari"])} înregistrări)')
+                    elif str(h["status"]).startswith("NEGĂSIT"):
+                        st.warning("Audit EEA: **negăsit** în setul EEA "
+                                   "(denumire comercială diferită sau model non-UE).")
+                    else:
+                        st.warning(f'Audit EEA: **de verificat** · masă '
+                                   f'{h.get("abatere_masa_pct", "–")}%, CO₂ '
+                                   f'{h.get("abatere_co2_pct", "–")}% față de '
+                                   f'mediana EEA.')
             if vrow["tip"] == "PHEV":
                 st.caption("PHEV: simularea rulează în regim charge-sustaining "
                            "(baterie descărcată la nivelul țintă), nu în modul "
@@ -758,6 +791,38 @@ def page_validare():
     st.markdown("#### Validarea fizică a simulărilor")
     st.caption("Verifică respectarea limitelor fizice pentru fiecare simulare: "
                "SoC în interval, puteri sub maxime, bilanț energetic, consum plauzibil.")
+
+    # --- Auditul EEA al bazei de date de vehicule (dacă raportul există) ---
+    eea_rep = load_eea_report()
+    with st.expander("Audit EEA al bazei de date de vehicule", expanded=False):
+        if eea_rep is None:
+            st.info(
+                "Raportul de audit nu a fost încă generat. Descărcați setul EEA "
+                "de monitorizare CO₂ (Reg. UE 2019/631) de la "
+                "co2cars.apps.eea.europa.eu — filtrat pe Ft = petrol/electric și "
+                "diesel/electric — apoi rulați local:\n\n"
+                "`python tools/verify_eea.py --eea <fișierul_EEA.csv>`\n\n"
+                "Raportul se scrie în `data/eea_verification_report.csv`; după "
+                "comitere în repo, această secțiune afișează automat abaterile "
+                "de masă/putere/CO₂ față de mediana EEA și statusul per vehicul.")
+        else:
+            n_ok = int((eea_rep["status"] == "OK").sum())
+            n_miss = int(eea_rep["status"].astype(str)
+                         .str.startswith("NEGĂSIT").sum())
+            n_chk = len(eea_rep) - n_ok - n_miss
+            a1, a2, a3 = st.columns(3)
+            a1.metric("OK (±6% masă, ±8% CO₂)", f"{n_ok}")
+            a2.metric("De verificat", f"{n_chk}")
+            a3.metric("Negăsite în EEA", f"{n_miss}")
+            st.dataframe(eea_rep, use_container_width=True, hide_index=True,
+                         height=380)
+            st.caption("Comparație cu MEDIANA înregistrărilor EEA per model "
+                       "(variantele de echipare nu există în EEA). Puterea EEA "
+                       "(ep) este raportată neuniform de constructori — tratați "
+                       "abaterile de putere orientativ. Câmpurile Cd/Af/η/baterie/"
+                       "preț nu există în EEA și nu pot fi auditate aici.")
+
+    st.markdown("##### Verificările fizice")
     val_arch = st.selectbox("Arhitectura", ARCHITECTURES,
                             format_func=lambda a: ARCH_LABELS[a], key="val_arch", index=2)
     val_cyc = st.selectbox("Ciclul", list(cycles.keys()), key="val_cyc")
@@ -828,12 +893,29 @@ def page_export():
             soc_pdf = {a: results[a]["WLTC"].SoC for a in ARCHITECTURES if a != "baseline"}
             sens_pdf = sensitivity_analysis("serie_paralel", p_used, econ_used,
                                             cycles["WLTC"], "WLTC")
+            eea_rep = load_eea_report()
+            eea_audit = None
+            if eea_rep is not None:
+                st_col = eea_rep["status"].astype(str)
+                eea_audit = {
+                    "n_ok": int((st_col == "OK").sum()),
+                    "n_missing": int(st_col.str.startswith("NEGĂSIT").sum()),
+                    "total": len(eea_rep)}
+                eea_audit["n_check"] = (eea_audit["total"] - eea_audit["n_ok"]
+                                        - eea_audit["n_missing"])
+                if db_u:
+                    hit = eea_rep[(eea_rep["marca"] == db_u["marca"]) &
+                                  (eea_rep["model"] == db_u["model"]) &
+                                  (eea_rep["varianta"] == db_u["varianta"])]
+                    if len(hit):
+                        eea_audit["vehicle"] = hit.iloc[0].to_dict()
             out = os.path.join(tempfile.gettempdir(), "raport_simulare_hev.pdf")
             generate_pdf_report(p_used, econ_used, rows_pdf, tco_pdf, checks_pdf,
                                 cmp_pdf, soc_pdf, STRATEGY_LABELS[strat_used], out,
                                 results=results, cycles=cycles, breakeven=be_pdf,
                                 sensitivity=sens_pdf,
-                                sens_arch_label=ARCH_LABELS["serie_paralel"])
+                                sens_arch_label=ARCH_LABELS["serie_paralel"],
+                                eea_audit=eea_audit)
         with open(out, "rb") as f:
             st.download_button("Descarcă raportul PDF", f,
                                file_name="raport_simulare_hev.pdf",

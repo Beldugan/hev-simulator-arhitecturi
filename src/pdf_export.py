@@ -355,6 +355,7 @@ def generate_pdf_report(
     breakeven: dict | None = None,
     sensitivity: dict | None = None,
     sens_arch_label: str = "",
+    eea_audit: dict | None = None,
 ) -> str:
     """
     Generează raportul PDF complet, cu watermark pe fiecare pagină.
@@ -660,6 +661,32 @@ def generate_pdf_report(
         t.setStyle(TableStyle([("TEXTCOLOR", (1, i), (1, i), color),
                                ("FONTNAME", (1, i), (1, i), _FONT_BOLD)]))
     story.append(t)
+
+    # ---- 7.3. Audit EEA (dacă raportul există) ----
+    if eea_audit:
+        story.append(Paragraph("7.3. Auditul EEA al bazei de date de vehicule",
+                               ss["H3x"]))
+        story.append(Paragraph(
+            f"Baza de date de vehicule a fost încrucișată cu setul EEA de "
+            f"monitorizare a emisiilor CO₂ (Regulamentul UE 2019/631), prin "
+            f"comparație cu mediana înregistrărilor per model: "
+            f"<b>{eea_audit['n_ok']}</b> vehicule OK (abateri ≤ ±6% masă, "
+            f"≤ ±8% CO₂), <b>{eea_audit['n_check']}</b> de verificat manual, "
+            f"<b>{eea_audit['n_missing']}</b> negăsite în EEA, din "
+            f"{eea_audit['total']} total.", ss["Bodyx"]))
+        veh = eea_audit.get("vehicle")
+        if veh:
+            story.append(Spacer(1, 4))
+            rows = [["Vehiculul simulat", "Înregistrări EEA",
+                     "Abatere masă [%]", "Abatere CO₂ [%]", "Status"],
+                    [f'{veh.get("marca","")} {veh.get("model","")} '
+                     f'{veh.get("varianta","")}',
+                     str(veh.get("eea_inregistrari", "–")),
+                     str(veh.get("abatere_masa_pct", "–")),
+                     str(veh.get("abatere_co2_pct", "–")),
+                     str(veh.get("status", "–"))]]
+            story.append(_tbl(rows, [5.2 * cm, 2.8 * cm, 2.8 * cm,
+                                     2.6 * cm, 3.4 * cm]))
 
     # ---- 8. Analiza de sensibilitate ----
     if sensitivity:

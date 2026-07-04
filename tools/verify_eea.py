@@ -25,7 +25,8 @@ descărca din mediul cloud al aplicației):
   2. Rulați:
          python tools/verify_eea.py --eea /cale/catre/CO2_passenger_cars.csv
 
-  3. Citiți raportul generat: tools/eea_verification_report.csv
+  3. Raportul se scrie în data/eea_verification_report.csv — comiteți-l în
+     repo: aplicația îl detectează automat și afișează auditul per vehicul.
      (o linie per vehicul: găsit/negăsit + abaterile procentuale per câmp).
 
 Note metodologice:
@@ -48,7 +49,7 @@ import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(HERE, "..", "data", "vehicles_db.csv")
-OUT_PATH = os.path.join(HERE, "eea_verification_report.csv")
+OUT_PATH = os.path.join(HERE, "..", "data", "eea_verification_report.csv")
 
 TOL = {"mass_pct": 6.0, "power_pct": 8.0, "co2_pct": 8.0}
 
