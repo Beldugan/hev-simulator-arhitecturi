@@ -124,9 +124,11 @@ def _load_eea(path: str, chunksize: int = 500_000) -> pd.DataFrame:
                           chunksize=chunksize, encoding_errors="replace",
                           low_memory=True):
         ch = ch.rename(columns={v: k for k, v in mapping.items()})
-        ft = ch["Ft"].astype(str).str.lower()
-        ch = ch[ft.str.contains("electric", na=False) &
-                ~ft.str.fullmatch("electric")]      # hibride, nu BEV
+        ft = ch["Ft"].astype(str).str.lower().str.strip()
+        is_hybrid = (ft.str.contains("hybrid", na=False) |
+                     (ft.str.contains("electric", na=False) &
+                      ft.str.contains("petrol|diesel|lpg|ng", na=False)))
+        ch = ch[is_hybrid]      # hibride benzină/diesel + electric, fără BEV pur
         chunks.append(ch)
     df = pd.concat(chunks, ignore_index=True)
     for c in ("m_kg", "ep_kW", "co2_wltp"):
@@ -145,7 +147,23 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--eea", required=True, help="CSV-ul EEA descărcat local")
     ap.add_argument("--out", default=OUT_PATH)
+    ap.add_argument("--inspect", action="store_true",
+                    help="Afișează valorile coloanei de combustibil și se oprește")
     args = ap.parse_args()
+
+    if args.inspect:
+        sep = _detect_sep(args.eea)
+        header = pd.read_csv(args.eea, sep=sep, nrows=0, encoding_errors="replace")
+        mapping = _map_columns(list(header.columns))
+        if mapping is None:
+            print("Coloane găsite:", list(header.columns)); raise SystemExit
+        ft = pd.read_csv(args.eea, sep=sep, usecols=[mapping["Ft"]],
+                         encoding_errors="replace")
+        vc = ft.iloc[:, 0].astype(str).str.strip().value_counts()
+        print("\nValori în coloana de combustibil (Ft) și numărul lor:")
+        for val, n in vc.items():
+            print(f"  {n:>10,}  {val!r}")
+        raise SystemExit
 
     db = pd.read_csv(DB_PATH)
     print(f"Baza de date: {len(db)} vehicule · EEA: se încarcă (poate dura)…")
