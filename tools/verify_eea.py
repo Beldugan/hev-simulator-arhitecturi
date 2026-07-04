@@ -124,8 +124,9 @@ def _load_eea(path: str, chunksize: int = 500_000) -> pd.DataFrame:
                           chunksize=chunksize, encoding_errors="replace",
                           low_memory=True):
         ch = ch.rename(columns={v: k for k, v in mapping.items()})
-        ch = ch[ch["Ft"].astype(str).str.lower()
-                  .str.contains("electric|petrol|diesel|hybrid", na=False)]
+        ft = ch["Ft"].astype(str).str.lower()
+        ch = ch[ft.str.contains("electric", na=False) &
+                ~ft.str.fullmatch("electric")]      # hibride, nu BEV
         chunks.append(ch)
     df = pd.concat(chunks, ignore_index=True)
     for c in ("m_kg", "ep_kW", "co2_wltp"):
@@ -153,26 +154,49 @@ def main() -> None:
     eea["CN_N"] = eea["Cn"].map(_norm)
     print(f"EEA: {len(eea):,} înregistrări relevante încărcate.")
 
+    eea["CN_NS"] = eea["CN_N"].str.replace(" ", "", regex=False)
+
+    def _variant_tokens(varianta: str) -> list[str]:
+        """Coduri de variantă căutabile în Cn (ex. 330E, C300E, 45TFSIE)."""
+        toks = re.findall(r"[A-Za-z]*\d{2,4}[A-Za-z]{0,4}", str(varianta).upper())
+        return [t.replace(" ", "") for t in toks if len(t) >= 3 and any(c.isdigit() for c in t)]
+
     rows = []
     for _, v in db.iterrows():
-        mk, model = _norm(v["marca"]), _norm(v["model"])
-        cand = eea[(eea["MK_N"].str.contains(mk.split()[0], na=False)) &
-                   (eea["CN_N"].str.contains(model, na=False))]
+        mk = _norm(v["marca"]).split()[0]
+        model_ns = _norm(v["model"]).replace(" ", "")
+        cand = eea[eea["MK_N"].str.contains(mk, na=False)]
+        # 2a. potrivire pe numele modelului (fără spații)
+        hit = cand[cand["CN_NS"].str.contains(model_ns, na=False)]
+        # 2b. fallback: codul variantei (330E, C300E…) în denumirea comercială
+        if len(hit) == 0:
+            for tok in _variant_tokens(v["varianta"]):
+                hit = cand[cand["CN_NS"].str.contains(tok, na=False)]
+                if len(hit):
+                    break
+        # 2c. dezambiguizare pe putere: păstrează înregistrările cu ep în
+        #     ±20% din puterea MCI sau din puterea de sistem (MCI+EM)
+        if len(hit):
+            p_ice = float(v["P_ICE_max_kW"])
+            p_sys = p_ice + float(v["P_EM_max_kW"])
+            m_ice = hit["ep_kW"].between(p_ice * 0.8, p_ice * 1.2)
+            m_sys = hit["ep_kW"].between(p_sys * 0.8, p_sys * 1.2)
+            narrowed = hit[m_ice | m_sys]
+            if len(narrowed) >= 5:
+                hit = narrowed
         rec = {"marca": v["marca"], "model": v["model"],
-               "varianta": v["varianta"], "eea_inregistrari": len(cand)}
-        if len(cand) == 0:
+               "varianta": v["varianta"], "eea_inregistrari": len(hit)}
+        if len(hit) == 0:
             rec["status"] = "NEGĂSIT în EEA (model non-UE sau denumire diferită)"
         else:
-            m_med = cand["m_kg"].median()
-            p_med = cand["ep_kW"].median()
-            c_med = cand["co2_wltp"].median()
-            rec["eea_masa_mediana"] = m_med
-            rec["eea_putere_mediana"] = p_med
-            rec["eea_co2_mediana"] = c_med
+            m_med = hit["m_kg"].median()
+            p_med = hit["ep_kW"].median()
+            c_med = hit["co2_wltp"].median()
+            rec["eea_masa_mediana"] = round(m_med, 0)
+            rec["eea_putere_mediana"] = round(p_med, 0)
+            rec["eea_co2_mediana"] = round(c_med, 1)
             rec["abatere_masa_pct"] = round((v["mass_kg"] - m_med) / m_med * 100, 1) if m_med else np.nan
-            # puterea EEA este puterea totală de omologare; comparăm cu MCI+EM plafonat
-            p_db = v["P_ICE_max_kW"]
-            rec["abatere_putere_pct"] = round((p_db - p_med) / p_med * 100, 1) if p_med else np.nan
+            rec["abatere_putere_pct"] = round((v["P_ICE_max_kW"] - p_med) / p_med * 100, 1) if p_med else np.nan
             rec["abatere_co2_pct"] = round((v["co2_wltp_g_km"] - c_med) / c_med * 100, 1) if c_med else np.nan
             ok = (abs(rec.get("abatere_masa_pct", 0)) <= TOL["mass_pct"] and
                   abs(rec.get("abatere_co2_pct", 0)) <= TOL["co2_pct"])
