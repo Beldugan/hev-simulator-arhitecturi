@@ -481,6 +481,8 @@ if run_btn or "results" not in st.session_state:
         st.session_state["params"] = p_active
         st.session_state["strategy"] = strategy
         st.session_state["econ"] = econ
+        st.session_state["db_row_used"] = (
+            vrow.to_dict() if mode == "Bază de date (marcă → model)" else None)
 
 if "results" not in st.session_state:
     st.info("Configurați parametrii în bara laterală și apăsați **Rulează simularea**.")
@@ -631,20 +633,58 @@ def page_simulare():
         # Metodologic: valorile WLTP de omologare se obțin EXCLUSIV pe ciclul
         # WLTC — comparația folosește deci doar simularea WLTC, nu media pe
         # cele trei cicluri (UDDS/HWFET sunt proceduri EPA, necomparabile).
-        sp_wltc = results["serie_paralel"]["WLTC"].consumption_L_100km
-        cmpv = compare_with_sources(sp_wltc, "serie_paralel", min_sources=3)
-        st.caption(f"Consum simulat serie-paralel pe WLTC: **{sp_wltc:.3f} L/100 km** — "
-                   "comparat exclusiv cu ciclul de omologare WLTP (WLTC), "
-                   "nu cu media pe cele trei cicluri.")
-        st.dataframe(pd.DataFrame([{
-        "Sursă (vehicul)": c["name"], "WLTP [L/100km]": c["official_L_100km"],
-        "Abatere [%]": c["deviation_pct"], "Referință": c["source"]}
-        for c in cmpv["comparisons"]]), use_container_width=True, hide_index=True)
-        st.caption("**Doar Dacia Bigster** este vehiculul modelat — abaterea față "
-                   "de el măsoară acuratețea modelului. Symbioz și Corolla sunt "
-                   "vehicule diferite (masă, motor, sistem hibrid diferite) și "
-                   "servesc exclusiv la plasarea rezultatului într-un interval de "
-                   "plauzibilitate al clasei de full-hybrid-uri, nu la validare.")
+        db_used = st.session_state.get("db_row_used")
+        if db_used:
+            arch_r = db_used["arhitectura"]
+            sim_w = results[arch_r]["WLTC"].consumption_L_100km
+            off = float(db_used["consum_wltp_L_100km"])
+            st.caption(f"Vehicul din baza de date: **{db_used['marca']} "
+                       f"{db_used['model']} {db_used['varianta']}** — comparația "
+                       f"se face cu **propria valoare WLTP oficială**, pe "
+                       f"arhitectura reală ({ARCH_LABELS.get(arch_r, arch_r)}).")
+            if db_used["tip"] == "PHEV":
+                st.dataframe(pd.DataFrame([{
+                    "Mărime": "Consum WLTP oficial (ponderat, baterie plină)",
+                    "Valoare": f"{off:.1f} L/100 km"}, {
+                    "Mărime": "Consum simulat charge-sustaining · WLTC",
+                    "Valoare": f"{sim_w:.3f} L/100 km"}]),
+                    use_container_width=True, hide_index=True)
+                st.caption("**PHEV:** valoarea de omologare este ponderată cu "
+                           "factorul de utilitate (pornire cu bateria plină) și "
+                           "NU este comparabilă direct cu simularea "
+                           "charge-sustaining; consumul simulat corespunde "
+                           "rulării cu bateria descărcată la nivelul țintă "
+                           "(coloana „consum susținut” din fișele WLTP, acolo "
+                           "unde constructorul o publică).")
+            else:
+                dev = (sim_w - off) / off * 100
+                st.dataframe(pd.DataFrame([{
+                    "Sursă (vehicul)": f"{db_used['marca']} {db_used['model']} "
+                                       f"{db_used['varianta']}",
+                    "WLTP oficial [L/100km]": off,
+                    "Simulat · WLTC [L/100km]": round(sim_w, 3),
+                    "Abatere [%]": round(dev, 1),
+                    "Referință": db_used["sursa"]}]),
+                    use_container_width=True, hide_index=True)
+                st.caption(f"Abaterea de **{dev:+.1f}%** măsoară acuratețea "
+                           f"modelului pe vehiculul selectat, cu parametrii din "
+                           f"baza de date (câmpuri estimate: "
+                           f"{str(db_used['estimari']).replace(';', ', ')}).")
+        else:
+            sp_wltc = results["serie_paralel"]["WLTC"].consumption_L_100km
+            cmpv = compare_with_sources(sp_wltc, "serie_paralel", min_sources=3)
+            st.caption(f"Consum simulat serie-paralel pe WLTC: **{sp_wltc:.3f} L/100 km** — "
+                       "comparat exclusiv cu ciclul de omologare WLTP (WLTC), "
+                       "nu cu media pe cele trei cicluri.")
+            st.dataframe(pd.DataFrame([{
+            "Sursă (vehicul)": c["name"], "WLTP [L/100km]": c["official_L_100km"],
+            "Abatere [%]": c["deviation_pct"], "Referință": c["source"]}
+            for c in cmpv["comparisons"]]), use_container_width=True, hide_index=True)
+            st.caption("**Doar Dacia Bigster** este vehiculul modelat — abaterea față "
+                       "de el măsoară acuratețea modelului. Symbioz și Corolla sunt "
+                       "vehicule diferite (masă, motor, sistem hibrid diferite) și "
+                       "servesc exclusiv la plasarea rezultatului într-un interval de "
+                       "plauzibilitate al clasei de full-hybrid-uri, nu la validare.")
 
 # ----------------------------------------------------------------------
 def page_sensibilitate():
@@ -761,9 +801,30 @@ def page_export():
                                        np.mean([results["paralel"][c].consumption_L_100km for c in cycles]),
                                        econ_used)
             checks_pdf = physical_validation(results["paralel"]["WLTC"], p_used)
-            # Comparația WLTP se face exclusiv pe ciclul de omologare WLTC
-            sp_wltc = results["serie_paralel"]["WLTC"].consumption_L_100km
-            cmp_pdf = compare_with_sources(sp_wltc, "serie_paralel", min_sources=3)
+            # Comparația WLTP se face exclusiv pe ciclul de omologare WLTC.
+            # Pentru un vehicul din baza de date: cu propria valoare oficială
+            # (pe arhitectura lui reală); PHEV se omite (WLTP ponderat nu e
+            # comparabil cu simularea charge-sustaining). Altfel: sursele
+            # de referință ale lucrării (Bigster + context).
+            db_u = st.session_state.get("db_row_used")
+            if db_u and db_u["tip"] != "PHEV":
+                arch_r = db_u["arhitectura"]
+                sim_w = results[arch_r]["WLTC"].consumption_L_100km
+                off = float(db_u["consum_wltp_L_100km"])
+                cmp_pdf = {"n_sources": 1,
+                           "avg_deviation_pct": round((sim_w - off) / off * 100, 1),
+                           "comparisons": [{
+                               "name": f'{db_u["marca"]} {db_u["model"]} '
+                                       f'{db_u["varianta"]}',
+                               "official_L_100km": off,
+                               "deviation_pct": round((sim_w - off) / off * 100, 1),
+                               "source": db_u["sursa"]}]}
+            elif db_u:
+                cmp_pdf = None
+            else:
+                sp_wltc = results["serie_paralel"]["WLTC"].consumption_L_100km
+                cmp_pdf = compare_with_sources(sp_wltc, "serie_paralel",
+                                               min_sources=3)
             soc_pdf = {a: results[a]["WLTC"].SoC for a in ARCHITECTURES if a != "baseline"}
             sens_pdf = sensitivity_analysis("serie_paralel", p_used, econ_used,
                                             cycles["WLTC"], "WLTC")
