@@ -29,7 +29,8 @@ from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table,
-                                TableStyle, Image, PageBreak)
+                                TableStyle, Image, PageBreak, CondPageBreak,
+                                KeepTogether)
 
 from vehicle_model import VehicleParams, SimulationResult, bsfc_map
 from tco_model import EconomicParams
@@ -129,18 +130,33 @@ def _interp(ss, text: str) -> Paragraph:
 
 
 def _tbl(data: list[list], col_widths=None) -> Table:
-    t = Table(data, colWidths=col_widths, hAlign="LEFT")
+    # Fiecare celulă devine Paragraph, ca textul lung (ex. denumiri de vehicule)
+    # să se încadreze pe mai multe rânduri în loc să se reverse peste coloana
+    # vecină. Antetul folosește un stil alb/bold; corpul, textul normal.
+    _register_fonts()
+    cell = ParagraphStyle("cell", fontName=_FONT_MAIN, fontSize=8,
+                          leading=10, textColor=INK)
+    head = ParagraphStyle("cellhdr", fontName=_FONT_BOLD, fontSize=8,
+                          leading=10, textColor=colors.white)
+
+    def _wrap(val, style):
+        if isinstance(val, Paragraph):
+            return val
+        return Paragraph(str(val).replace("\n", "<br/>"), style)
+
+    wrapped = [[_wrap(c, head) for c in data[0]]]
+    wrapped += [[_wrap(c, cell) for c in row] for row in data[1:]]
+
+    t = Table(wrapped, colWidths=col_widths, hAlign="LEFT")
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), HDR),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTSIZE", (0, 0), (-1, -1), 8),
-        ("FONTNAME", (0, 0), (-1, -1), _FONT_MAIN),
-        ("FONTNAME", (0, 0), (-1, 0), _FONT_BOLD),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, LIGHT]),
         ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#cbd5e1")),
         ("TOPPADDING", (0, 0), (-1, -1), 3.5),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 3.5),
         ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
     ]))
     return t
 
@@ -502,7 +518,7 @@ def generate_pdf_report(
 
     # ---- 3. SoC ----
     if soc_data:
-        story.append(PageBreak())
+        story.append(CondPageBreak(7 * cm))
         story.append(Paragraph("3. Traiectoriile stării de încărcare", ss["H2x"]))
         story.append(_soc_chart(soc_data, p))
         deltas = {a: (soc[-1] - soc[0]) * 100 for a, soc in soc_data.items()}
@@ -535,12 +551,6 @@ def generate_pdf_report(
         }
         for a in hyb:
             r = results[a]["WLTC"]
-            story.append(Paragraph(f"4.{hyb.index(a)+1}. {ARCH_LABELS[a]}", ss["H3x"]))
-            story.append(_power_chart(r, cycles["WLTC"], f"{ARCH_LABELS[a]} · WLTC"))
-            story.append(Spacer(1, 6))
-            story.append(_live_final_chart(
-                r, cycles["WLTC"], p,
-                f"{ARCH_LABELS[a]} · WLTC — derularea completă a ciclului"))
             on = r.P_engine_W > 500
             on_pct = float(np.mean(on)) * 100
             p_mean = float(np.mean(r.P_engine_W[on])) / 1000 if on.any() else 0.0
@@ -550,23 +560,31 @@ def generate_pdf_report(
             fuel_tot_L = float(np.sum(r.fuel_rate_g_s)) / (p.fuel_density_kg_L * 1000)
             co2_tot_g = float(np.sum(r.fuel_rate_g_s)) * (p.fuel_CO2_kg_L / p.fuel_density_kg_L)
             n_starts = int(np.sum(on[1:] & ~on[:-1]) + (1 if on.any() and on[0] else 0))
-            story.append(Spacer(1, 3))
-            story.append(_interp(ss,
-                f"motorul termic funcționează {on_pct:.0f}% din durata ciclului "
-                f"({n_starts} porniri), cu o putere medie de {p_mean:.1f} kW "
-                f"(σ = {p_std:.1f} kW); mașina "
-                f"electrică atinge {pem_max:.1f} kW în tracțiune și recuperează "
-                f"{e_regen:.2f} kWh prin frânare regenerativă. În derularea completă "
-                f"a ciclului se consumă {fuel_tot_L:.2f} L de combustibil "
-                f"({co2_tot_g:.0f} g CO₂), acumulați predominant în fazele cu "
-                f"banda roșie (MCI pornit); pe segmentele verzi vehiculul rulează "
-                f"electric, iar SoC-ul revine spre țintă prin recuperare și "
-                f"reîncărcare. " + arch_note.get(a, "")))
-            if a != hyb[-1]:
-                story.append(PageBreak())
-        story.append(PageBreak())
+            block = [
+                Paragraph(f"4.{hyb.index(a)+1}. {ARCH_LABELS[a]}", ss["H3x"]),
+                _power_chart(r, cycles["WLTC"], f"{ARCH_LABELS[a]} · WLTC"),
+                Spacer(1, 6),
+                _live_final_chart(
+                    r, cycles["WLTC"], p,
+                    f"{ARCH_LABELS[a]} · WLTC — derularea completă a ciclului"),
+                Spacer(1, 3),
+                _interp(ss,
+                    f"motorul termic funcționează {on_pct:.0f}% din durata ciclului "
+                    f"({n_starts} porniri), cu o putere medie de {p_mean:.1f} kW "
+                    f"(σ = {p_std:.1f} kW); mașina "
+                    f"electrică atinge {pem_max:.1f} kW în tracțiune și recuperează "
+                    f"{e_regen:.2f} kWh prin frânare regenerativă. În derularea completă "
+                    f"a ciclului se consumă {fuel_tot_L:.2f} L de combustibil "
+                    f"({co2_tot_g:.0f} g CO₂), acumulați predominant în fazele cu "
+                    f"banda roșie (MCI pornit); pe segmentele verzi vehiculul rulează "
+                    f"electric, iar SoC-ul revine spre țintă prin recuperare și "
+                    f"reîncărcare. " + arch_note.get(a, "")),
+                Spacer(1, 10),
+            ]
+            story.append(KeepTogether(block))
 
         # ---- 5. BSFC ----
+        story.append(CondPageBreak(7 * cm))
         story.append(Paragraph("5. Punctele de operare pe harta BSFC", ss["H2x"]))
         story.append(_bsfc_chart(p, {a: results[a]["WLTC"] for a in arch_order}))
         bs = {}
@@ -628,7 +646,7 @@ def generate_pdf_report(
     story.append(_interp(ss, tco_txt))
 
     # ---- 7. Validare fizică ----
-    story.append(PageBreak())
+    story.append(CondPageBreak(7 * cm))
     story.append(Paragraph("7. Validarea fizică a simulărilor", ss["H2x"]))
     if has_full:
         sum_hdr = ["Arhitectură"] + list(cycles.keys())
@@ -654,12 +672,14 @@ def generate_pdf_report(
             f"energetic închis și plauzibilitatea consumului."))
         story.append(Paragraph("7.2. Detaliu: Paralel · WLTC", ss["H3x"]))
     hdr = ["Verificare", "Status", "Detalii"]
-    rows = [hdr] + [[c["check"], c["status"], c["detail"]] for c in validation_checks]
+    _cell = ParagraphStyle("vcell", fontName=_FONT_MAIN, fontSize=8,
+                           leading=10, textColor=INK)
+    rows = [hdr]
+    for c in validation_checks:
+        col = "#059669" if c["status"] == "PASS" else "#dc2626"
+        status_p = Paragraph(f'<b><font color="{col}">{c["status"]}</font></b>', _cell)
+        rows.append([c["check"], status_p, c["detail"]])
     t = _tbl(rows, [6 * cm, 1.8 * cm, 9 * cm])
-    for i, c in enumerate(validation_checks, start=1):
-        color = colors.HexColor("#059669") if c["status"] == "PASS" else colors.HexColor("#dc2626")
-        t.setStyle(TableStyle([("TEXTCOLOR", (1, i), (1, i), color),
-                               ("FONTNAME", (1, i), (1, i), _FONT_BOLD)]))
     story.append(t)
 
     # ---- 7.3. Audit EEA (dacă raportul există) ----
@@ -690,7 +710,7 @@ def generate_pdf_report(
 
     # ---- 8. Analiza de sensibilitate ----
     if sensitivity:
-        story.append(PageBreak())
+        story.append(CondPageBreak(8 * cm))
         story.append(Paragraph("8. Analiza de sensibilitate (±20%)", ss["H2x"]))
         story.append(Paragraph(
             f"Fiecare parametru este variat cu ±20% față de valoarea nominală "
@@ -700,10 +720,11 @@ def generate_pdf_report(
         story.append(Spacer(1, 4))
 
         base_c = sensitivity["base_consumption"]
-        story.append(Paragraph("8.1. Efectul asupra consumului", ss["H3x"]))
-        story.append(_tornado_chart(sensitivity["consumption"], base_c,
-                                    "Consum [L/100 km]",
-                                    f"Sensibilitatea consumului (bază: {base_c:.3f} L/100 km)"))
+        story.append(KeepTogether([
+            Paragraph("8.1. Efectul asupra consumului", ss["H3x"]),
+            _tornado_chart(sensitivity["consumption"], base_c,
+                           "Consum [L/100 km]",
+                           f"Sensibilitatea consumului (bază: {base_c:.3f} L/100 km)")]))
         rc = sorted(sensitivity["consumption"],
                     key=lambda e: abs(e["high"] - e["low"]), reverse=True)
         spans_c = [(e["label"], abs(e["high"] - e["low"]),
@@ -723,9 +744,10 @@ def generate_pdf_report(
             f"ca tampon, nu ca sursă de energie."))
 
         base_t = sensitivity["base_tco"]
-        story.append(Paragraph("8.2. Efectul asupra costului total de proprietate", ss["H3x"]))
-        story.append(_tornado_chart(sensitivity["tco"], base_t, "TCO [EUR]",
-                                    f"Sensibilitatea TCO (bază: {_fmt_int(base_t)} EUR)"))
+        story.append(KeepTogether([
+            Paragraph("8.2. Efectul asupra costului total de proprietate", ss["H3x"]),
+            _tornado_chart(sensitivity["tco"], base_t, "TCO [EUR]",
+                           f"Sensibilitatea TCO (bază: {_fmt_int(base_t)} EUR)")]))
         rt = sorted(sensitivity["tco"],
                     key=lambda e: abs(e["high"] - e["low"]), reverse=True)
         spans_t = [(e["label"], abs(e["high"] - e["low"])) for e in rt]

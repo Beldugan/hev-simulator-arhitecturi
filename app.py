@@ -438,7 +438,7 @@ with st.sidebar:
                               (eea_rep["varianta"] == vrow["varianta"])]
                 if len(hit):
                     h = hit.iloc[0]
-                    if str(h["status"]) == "OK":
+                    if str(h["status"]).startswith("OK"):
                         st.success(f'Audit EEA: **OK** · abateri față de mediana '
                                    f'EEA — masă {h.get("abatere_masa_pct", "–")}%, '
                                    f'CO₂ {h.get("abatere_co2_pct", "–")}% '
@@ -806,7 +806,7 @@ def page_validare():
                 "comitere în repo, această secțiune afișează automat abaterile "
                 "de masă/putere/CO₂ față de mediana EEA și statusul per vehicul.")
         else:
-            n_ok = int((eea_rep["status"] == "OK").sum())
+            n_ok = int((eea_rep["status"].astype(str).str.startswith("OK")).sum())
             n_miss = int(eea_rep["status"].astype(str)
                          .str.startswith("NEGĂSIT").sum())
             n_chk = len(eea_rep) - n_ok - n_miss
@@ -898,7 +898,7 @@ def page_export():
             if eea_rep is not None:
                 st_col = eea_rep["status"].astype(str)
                 eea_audit = {
-                    "n_ok": int((st_col == "OK").sum()),
+                    "n_ok": int(st_col.str.startswith("OK").sum()),
                     "n_missing": int(st_col.str.startswith("NEGĂSIT").sum()),
                     "total": len(eea_rep)}
                 eea_audit["n_check"] = (eea_audit["total"] - eea_audit["n_ok"]

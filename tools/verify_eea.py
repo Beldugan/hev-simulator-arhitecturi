@@ -202,6 +202,15 @@ def main() -> None:
             narrowed = hit[m_ice | m_sys]
             if len(narrowed) >= 5:
                 hit = narrowed
+            # Separă HEV de PHEV: variantele PHEV au CO2 WLTP ponderat mic
+            # (<50 g/km). Împiedică amestecarea celor două în aceeași mediană.
+            own = float(v["co2_wltp_g_km"])
+            if own >= 50:                       # HEV/MHEV: exclude PHEV-urile
+                keep = hit[hit["co2_wltp"] >= 50]
+            else:                               # PHEV: păstrează doar PHEV-urile
+                keep = hit[hit["co2_wltp"] < 50]
+            if len(keep) >= 3:
+                hit = keep
         rec = {"marca": v["marca"], "model": v["model"],
                "varianta": v["varianta"], "eea_inregistrari": len(hit)}
         if len(hit) == 0:
