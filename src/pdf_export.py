@@ -189,7 +189,8 @@ def _bars_chart(values: dict[str, dict[str, float]], ylabel: str, title: str,
     """Bar chart grupat generic: arhitecturi × cicluri."""
     archs = list(values.keys())
     cyc = list(next(iter(values.values())).keys())
-    fig, ax = plt.subplots(figsize=(8.5, 3.4))
+    fig_w = max(8.5, 2.2 * len(cyc))
+    fig, ax = plt.subplots(figsize=(fig_w, 3.6))
     width = 0.8 / len(archs)
     x = np.arange(len(cyc))
     for i, a in enumerate(archs):
@@ -199,12 +200,17 @@ def _bars_chart(values: dict[str, dict[str, float]], ylabel: str, title: str,
                       color=_PALETTE.get(a, "#333"))
         ax.bar_label(bars, fmt=fmt.format, fontsize=6.5, padding=1)
     ax.set_xticks(x + width * (len(archs) - 1) / 2)
-    ax.set_xticklabels(cyc)
+    wrapped = [c.replace(" (", "\n(") for c in cyc]
+    if len(cyc) >= 4:
+        ax.set_xticklabels(wrapped, rotation=20, ha="right", fontsize=8)
+    else:
+        ax.set_xticklabels(wrapped, fontsize=8.5)
     ax.set_ylabel(ylabel)
     ax.set_title(title)
     ax.legend(fontsize=8, ncol=len(archs))
     ax.grid(axis="y", alpha=0.3)
     ax.margins(y=0.15)
+    fig.tight_layout()
     return _fig_to_image(fig)
 
 
@@ -372,6 +378,8 @@ def generate_pdf_report(
     sensitivity: dict | None = None,
     sens_arch_label: str = "",
     eea_audit: dict | None = None,
+    report_cycles: list[str] | None = None,
+    main_cycle: str = "WLTC",
 ) -> str:
     """
     Generează raportul PDF complet, cu watermark pe fiecare pagină.
@@ -425,6 +433,7 @@ def generate_pdf_report(
         "consumatori auxiliari opriți pe durata testului).", ss["Metax"]))
 
     # ---- 2. Rezultatele simulării — tabel complet ----
+    story.append(PageBreak())
     story.append(Paragraph("2. Rezultatele simulării", ss["H2x"]))
     has_ev = results_table and "Cotă EV [%]" in results_table[0]
     if has_ev:
@@ -516,27 +525,32 @@ def generate_pdf_report(
             f"Valoarea baseline reflectă doar funcția stop&start (staționare), "
             f"nu tracțiune electrică."))
 
-    # ---- 3. SoC ----
+    # ---- 3. SoC (pentru fiecare ciclu selectat) ----
     if soc_data:
-        story.append(CondPageBreak(7 * cm))
+        story.append(PageBreak())
         story.append(Paragraph("3. Traiectoriile stării de încărcare", ss["H2x"]))
-        story.append(_soc_chart(soc_data, p))
-        deltas = {a: (soc[-1] - soc[0]) * 100 for a, soc in soc_data.items()}
-        mins = {a: soc.min() * 100 for a, soc in soc_data.items()}
-        worst = max(deltas.items(), key=lambda kv: abs(kv[1]))
-        story.append(Spacer(1, 4))
-        story.append(_interp(ss,
-            "funcționarea este charge-sustaining: variația netă de SoC pe WLTC este "
-            + ", ".join(f"{ARCH_LABELS.get(a, a)}: {d:+.1f} pp" for a, d in deltas.items())
-            + f" (abaterea maximă {worst[1]:+.1f} pp, corectată energetic în "
-            f"consumul raportat). SoC-ul minim atins — "
-            + ", ".join(f"{ARCH_LABELS.get(a, a)}: {m:.0f}%" for a, m in mins.items())
-            + f" — rămâne peste limita de protecție de {p.SoC_min*100:.0f}%, "
-            f"confirmând că strategia EMS menține bateria în fereastra de operare."))
+        for ci, (cyc, arch_soc) in enumerate(soc_data.items()):
+            block = [Paragraph(f"3.{ci+1}. Ciclul {cyc}", ss["H3x"]),
+                     _soc_chart(arch_soc, p)]
+            deltas = {a: (soc[-1] - soc[0]) * 100 for a, soc in arch_soc.items()}
+            mins = {a: soc.min() * 100 for a, soc in arch_soc.items()}
+            worst = max(deltas.items(), key=lambda kv: abs(kv[1]))
+            block.append(Spacer(1, 4))
+            block.append(_interp(ss,
+                f"pe ciclul {cyc}, funcționarea este charge-sustaining: variația "
+                f"netă de SoC este "
+                + ", ".join(f"{ARCH_LABELS.get(a, a)}: {d:+.1f} pp" for a, d in deltas.items())
+                + f" (abaterea maximă {worst[1]:+.1f} pp, corectată energetic în "
+                f"consumul raportat). SoC-ul minim atins — "
+                + ", ".join(f"{ARCH_LABELS.get(a, a)}: {m:.0f}%" for a, m in mins.items())
+                + f" — rămâne peste limita de protecție de {p.SoC_min*100:.0f}%, "
+                f"confirmând că strategia EMS menține bateria în fereastra de operare."))
+            block.append(Spacer(1, 10))
+            story.append(KeepTogether(block))
 
-    # ---- 4. Profiluri de putere ----
-    if has_full and "WLTC" in cycles:
-        story.append(Paragraph("4. Profilurile de putere pe ciclul WLTC", ss["H2x"]))
+    # ---- 4. Profiluri de putere (pentru fiecare ciclu selectat) ----
+    rep_cyc = [c for c in (report_cycles or ["WLTC"]) if c in (cycles or {})]
+    if has_full and rep_cyc:
         arch_note = {
             "serie": "Împrăștierea redusă a sarcinii motorului confirmă decuplarea "
                      "de roți: turația liberă permite funcționarea aproape de punctul "
@@ -549,64 +563,73 @@ def generate_pdf_report(
                              "electrică permanentă — profil intermediar între cele "
                              "două arhitecturi pure.",
         }
-        for a in hyb:
-            r = results[a]["WLTC"]
-            on = r.P_engine_W > 500
-            on_pct = float(np.mean(on)) * 100
-            p_mean = float(np.mean(r.P_engine_W[on])) / 1000 if on.any() else 0.0
-            p_std = float(np.std(r.P_engine_W[on])) / 1000 if on.any() else 0.0
-            pem_max = float(np.max(r.P_EM_W)) / 1000
-            e_regen = float(-np.sum(np.minimum(r.P_EM_W, 0.0))) / 3.6e6
-            fuel_tot_L = float(np.sum(r.fuel_rate_g_s)) / (p.fuel_density_kg_L * 1000)
-            co2_tot_g = float(np.sum(r.fuel_rate_g_s)) * (p.fuel_CO2_kg_L / p.fuel_density_kg_L)
-            n_starts = int(np.sum(on[1:] & ~on[:-1]) + (1 if on.any() and on[0] else 0))
+        story.append(PageBreak())
+        story.append(Paragraph("4. Profilurile de putere pe cicluri", ss["H2x"]))
+        sec = 0
+        for cyc in rep_cyc:
+            for a in hyb:
+                sec += 1
+                r = results[a][cyc]
+                on = r.P_engine_W > 500
+                on_pct = float(np.mean(on)) * 100
+                p_mean = float(np.mean(r.P_engine_W[on])) / 1000 if on.any() else 0.0
+                p_std = float(np.std(r.P_engine_W[on])) / 1000 if on.any() else 0.0
+                pem_max = float(np.max(r.P_EM_W)) / 1000
+                e_regen = float(-np.sum(np.minimum(r.P_EM_W, 0.0))) / 3.6e6
+                fuel_tot_L = float(np.sum(r.fuel_rate_g_s)) / (p.fuel_density_kg_L * 1000)
+                co2_tot_g = float(np.sum(r.fuel_rate_g_s)) * (p.fuel_CO2_kg_L / p.fuel_density_kg_L)
+                n_starts = int(np.sum(on[1:] & ~on[:-1]) + (1 if on.any() and on[0] else 0))
+                block = [
+                    Paragraph(f"4.{sec}. {ARCH_LABELS[a]} · {cyc}", ss["H3x"]),
+                    _power_chart(r, cycles[cyc], f"{ARCH_LABELS[a]} · {cyc}"),
+                    Spacer(1, 6),
+                    _live_final_chart(
+                        r, cycles[cyc], p,
+                        f"{ARCH_LABELS[a]} · {cyc} — derularea completă a ciclului"),
+                    Spacer(1, 3),
+                    _interp(ss,
+                        f"pe ciclul {cyc}, motorul termic funcționează {on_pct:.0f}% "
+                        f"din durată ({n_starts} porniri), cu o putere medie de "
+                        f"{p_mean:.1f} kW (σ = {p_std:.1f} kW); mașina electrică "
+                        f"atinge {pem_max:.1f} kW în tracțiune și recuperează "
+                        f"{e_regen:.2f} kWh prin frânare regenerativă. Se consumă "
+                        f"{fuel_tot_L:.2f} L de combustibil ({co2_tot_g:.0f} g CO₂), "
+                        f"acumulați în fazele cu banda roșie (MCI pornit); pe "
+                        f"segmentele verzi vehiculul rulează electric. "
+                        + arch_note.get(a, "")),
+                    Spacer(1, 10),
+                ]
+                story.append(KeepTogether(block))
+
+        # ---- 5. BSFC (pentru fiecare ciclu selectat) ----
+        story.append(PageBreak())
+        story.append(Paragraph("5. Punctele de operare pe harta BSFC", ss["H2x"]))
+        P_range = np.linspace(2, p.P_ICE_max_kW, 120) * 1000
+        bmin = float(np.min([bsfc_map(P, p) for P in P_range]))
+        for ci, cyc in enumerate(rep_cyc):
+            bs = {}
+            for a in hyb:
+                P_on = results[a][cyc].P_engine_W
+                P_on = P_on[P_on > 500]
+                bs[a] = float(np.mean([bsfc_map(P, p) for P in P_on])) if len(P_on) else 0.0
+            best_bs = min(bs.items(), key=lambda kv: kv[1])
             block = [
-                Paragraph(f"4.{hyb.index(a)+1}. {ARCH_LABELS[a]}", ss["H3x"]),
-                _power_chart(r, cycles["WLTC"], f"{ARCH_LABELS[a]} · WLTC"),
-                Spacer(1, 6),
-                _live_final_chart(
-                    r, cycles["WLTC"], p,
-                    f"{ARCH_LABELS[a]} · WLTC — derularea completă a ciclului"),
-                Spacer(1, 3),
+                Paragraph(f"5.{ci+1}. Ciclul {cyc}", ss["H3x"]),
+                _bsfc_chart(p, {a: results[a][cyc] for a in arch_order}),
+                Spacer(1, 4),
                 _interp(ss,
-                    f"motorul termic funcționează {on_pct:.0f}% din durata ciclului "
-                    f"({n_starts} porniri), cu o putere medie de {p_mean:.1f} kW "
-                    f"(σ = {p_std:.1f} kW); mașina "
-                    f"electrică atinge {pem_max:.1f} kW în tracțiune și recuperează "
-                    f"{e_regen:.2f} kWh prin frânare regenerativă. În derularea completă "
-                    f"a ciclului se consumă {fuel_tot_L:.2f} L de combustibil "
-                    f"({co2_tot_g:.0f} g CO₂), acumulați predominant în fazele cu "
-                    f"banda roșie (MCI pornit); pe segmentele verzi vehiculul rulează "
-                    f"electric, iar SoC-ul revine spre țintă prin recuperare și "
-                    f"reîncărcare. " + arch_note.get(a, "")),
+                    f"pe ciclul {cyc}, consumul specific minim al motorului este "
+                    f"{bmin:.0f} g/kWh (banda verde = zona optimă, +5%). BSFC-ul mediu "
+                    f"al punctelor de operare: "
+                    + ", ".join(f"{ARCH_LABELS[a]}: {v:.0f} g/kWh" for a, v in bs.items())
+                    + f". {ARCH_LABELS[best_bs[0]]} operează motorul cel mai aproape de "
+                    f"optim ({best_bs[1]:.0f} g/kWh)."),
                 Spacer(1, 10),
             ]
             story.append(KeepTogether(block))
 
-        # ---- 5. BSFC ----
-        story.append(CondPageBreak(7 * cm))
-        story.append(Paragraph("5. Punctele de operare pe harta BSFC", ss["H2x"]))
-        story.append(_bsfc_chart(p, {a: results[a]["WLTC"] for a in arch_order}))
-        bs = {}
-        for a in hyb:
-            P_on = results[a]["WLTC"].P_engine_W
-            P_on = P_on[P_on > 500]
-            bs[a] = float(np.mean([bsfc_map(P, p) for P in P_on])) if len(P_on) else 0.0
-        P_range = np.linspace(2, p.P_ICE_max_kW, 120) * 1000
-        bmin = float(np.min([bsfc_map(P, p) for P in P_range]))
-        best_bs = min(bs.items(), key=lambda kv: kv[1])
-        story.append(Spacer(1, 4))
-        story.append(_interp(ss,
-            f"consumul specific minim al motorului este {bmin:.0f} g/kWh (banda "
-            f"verde = zona optimă, +5%). BSFC-ul mediu al punctelor de operare: "
-            + ", ".join(f"{ARCH_LABELS[a]}: {v:.0f} g/kWh" for a, v in bs.items())
-            + f". {ARCH_LABELS[best_bs[0]]} operează motorul cel mai aproape de "
-            f"optim ({best_bs[1]:.0f} g/kWh) — la arhitectura serie acest avantaj "
-            f"este însă consumat parțial de pierderile dublei conversii electrice, "
-            f"ceea ce explică de ce un BSFC mediu bun nu garantează consumul minim "
-            f"la roată."))
-
     # ---- 6. TCO ----
+    story.append(PageBreak())
     story.append(Paragraph("6. Costul total de proprietate (TCO)", ss["H2x"]))
     has_ins = tco_table and "Asigurare" in tco_table[0]
     if has_ins:
@@ -646,7 +669,7 @@ def generate_pdf_report(
     story.append(_interp(ss, tco_txt))
 
     # ---- 7. Validare fizică ----
-    story.append(CondPageBreak(7 * cm))
+    story.append(PageBreak())
     story.append(Paragraph("7. Validarea fizică a simulărilor", ss["H2x"]))
     if has_full:
         sum_hdr = ["Arhitectură"] + list(cycles.keys())
@@ -670,7 +693,7 @@ def generate_pdf_report(
             f"({total_pass/total_checks*100:.0f}%). Verificările acoperă: SoC în "
             f"fereastra de operare, puteri sub limitele componentelor, bilanț "
             f"energetic închis și plauzibilitatea consumului."))
-        story.append(Paragraph("7.2. Detaliu: Paralel · WLTC", ss["H3x"]))
+        story.append(Paragraph(f"7.2. Detaliu: Paralel · {main_cycle}", ss["H3x"]))
     hdr = ["Verificare", "Status", "Detalii"]
     _cell = ParagraphStyle("vcell", fontName=_FONT_MAIN, fontSize=8,
                            leading=10, textColor=INK)
@@ -710,7 +733,7 @@ def generate_pdf_report(
 
     # ---- 8. Analiza de sensibilitate ----
     if sensitivity:
-        story.append(CondPageBreak(8 * cm))
+        story.append(PageBreak())
         story.append(Paragraph("8. Analiza de sensibilitate (±20%)", ss["H2x"]))
         story.append(Paragraph(
             f"Fiecare parametru este variat cu ±20% față de valoarea nominală "
@@ -765,6 +788,7 @@ def generate_pdf_report(
 
     # ---- 9. Comparație cu surse externe ----
     if comparison_data and comparison_data.get("comparisons"):
+        story.append(PageBreak())
         story.append(Paragraph("9. Comparația cu valorile WLTP oficiale", ss["H2x"]))
         hdr = ["Sursă (vehicul)", "WLTP [L/100km]", "Abatere [%]", "Referință"]
         rows = [hdr] + [[c["name"], f'{c["official_L_100km"]:.2f}',

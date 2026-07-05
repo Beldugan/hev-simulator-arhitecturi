@@ -904,7 +904,17 @@ def page_export():
     st.caption("Generează un raport PDF unic cu parametrii de intrare, tabelele de "
                "rezultate, graficele, validarea fizică, comparația cu sursele WLTP "
                "și interpretări automate.")
-    if st.button("Generează raportul PDF", type="primary"):
+    all_cyc = list(cycles.keys())
+    sel_cycles = st.multiselect(
+        "Cicluri incluse în secțiunile detaliate (SoC, profiluri de putere, "
+        "BSFC, validare, comparație WLTP)", all_cyc,
+        default=[c for c in ["WLTC"] if c in all_cyc] or all_cyc[:1])
+    if not sel_cycles:
+        st.info("Selectează cel puțin un ciclu pentru secțiunile detaliate.")
+    st.caption("Tabelele de sinteză (consum, CO₂, cotă EV, TCO) includ oricum "
+               "toate ciclurile simulate; selecția de mai sus controlează doar "
+               "capitolele cu grafice per ciclu.")
+    if st.button("Generează raportul PDF", type="primary", disabled=not sel_cycles):
         with st.spinner("Se generează raportul…"):
             rows_pdf = [{"Arhitectură": ARCH_LABELS[a], "Ciclu": c,
                          "Consum [L/100km]": results[a][c].consumption_L_100km,
@@ -928,16 +938,20 @@ def page_export():
                                        np.mean([results["baseline"][c].consumption_L_100km for c in cycles]),
                                        np.mean([results["paralel"][c].consumption_L_100km for c in cycles]),
                                        econ_used)
-            checks_pdf = physical_validation(results["paralel"]["WLTC"], p_used)
+            # Ciclul principal pentru secțiunile care rămân pe un singur ciclu
+            # (comparația WLTP, sensibilitatea): WLTC dacă e selectat, altfel primul.
+            main_cyc = "WLTC" if "WLTC" in sel_cycles else sel_cycles[0]
+            checks_pdf = physical_validation(results["paralel"][main_cyc], p_used)
             # Comparația WLTP se face exclusiv pe ciclul de omologare WLTC.
             # Pentru un vehicul din baza de date: cu propria valoare oficială
             # (pe arhitectura lui reală); PHEV se omite (WLTP ponderat nu e
             # comparabil cu simularea charge-sustaining). Altfel: sursele
             # de referință ale lucrării (Bigster + context).
             db_u = st.session_state.get("db_row_used")
+            wltp_cyc = "WLTC" if "WLTC" in cycles else main_cyc
             if db_u and db_u["tip"] != "PHEV":
                 arch_r = db_u["arhitectura"]
-                sim_w = results[arch_r]["WLTC"].consumption_L_100km
+                sim_w = results[arch_r][wltp_cyc].consumption_L_100km
                 off = float(db_u["consum_wltp_L_100km"])
                 cmp_pdf = {"n_sources": 1,
                            "avg_deviation_pct": round((sim_w - off) / off * 100, 1),
@@ -950,12 +964,14 @@ def page_export():
             elif db_u:
                 cmp_pdf = None
             else:
-                sp_wltc = results["serie_paralel"]["WLTC"].consumption_L_100km
+                sp_wltc = results["serie_paralel"][wltp_cyc].consumption_L_100km
                 cmp_pdf = compare_with_sources(sp_wltc, "serie_paralel",
                                                min_sources=3)
-            soc_pdf = {a: results[a]["WLTC"].SoC for a in ARCHITECTURES if a != "baseline"}
+            # SoC pentru fiecare ciclu selectat (arhitecturile hibride)
+            soc_pdf = {c: {a: results[a][c].SoC for a in ARCHITECTURES if a != "baseline"}
+                       for c in sel_cycles}
             sens_pdf = sensitivity_analysis("serie_paralel", p_used, econ_used,
-                                            cycles["WLTC"], "WLTC")
+                                            cycles[main_cyc], main_cyc)
             eea_rep = load_eea_report()
             eea_audit = None
             if eea_rep is not None:
@@ -978,7 +994,8 @@ def page_export():
                                 results=results, cycles=cycles, breakeven=be_pdf,
                                 sensitivity=sens_pdf,
                                 sens_arch_label=ARCH_LABELS["serie_paralel"],
-                                eea_audit=eea_audit)
+                                eea_audit=eea_audit,
+                                report_cycles=sel_cycles, main_cycle=main_cyc)
         with open(out, "rb") as f:
             st.download_button("Descarcă raportul PDF", f,
                                file_name="raport_simulare_hev.pdf",
