@@ -173,6 +173,67 @@ def _fig_to_image(fig, width_cm: float = 16.5) -> Image:
     return img
 
 
+def _route_map_chart(track: dict, title: str) -> Image:
+    """Hartă a traseului GPS pentru PDF, colorată după viteză, cu fundal de
+    străzi tip Google Maps (dale OpenStreetMap/Carto prin contextily).
+
+    Dacă nu există acces la internet la momentul generării, revine automat la
+    un fundal simplu (fără dale) — raportul se generează în ambele cazuri.
+    Dimensiune compactă, ca harta + graficul SoC să încapă împreună pe pagină.
+    """
+    from matplotlib.collections import LineCollection
+    lat = np.asarray(track["lat"], dtype=float)
+    lon = np.asarray(track["lon"], dtype=float)
+    spd = np.asarray(track["speed"], dtype=float)
+
+    # Web Mercator (EPSG:3857) pentru potrivirea cu dalele de hartă
+    R = 6378137.0
+    x = np.radians(lon) * R
+    y = np.log(np.tan(np.pi / 4 + np.radians(lat) / 2)) * R
+
+    pts = np.column_stack([x, y]).reshape(-1, 1, 2)
+    segs = np.concatenate([pts[:-1], pts[1:]], axis=1)
+    seg_spd = (spd[:-1] + spd[1:]) / 2
+    vmax = max(float(spd.max()), 1.0)
+
+    fig, ax = plt.subplots(figsize=(7.0, 4.6))
+    lc = LineCollection(segs, cmap="turbo", linewidths=3.0,
+                        capstyle="round", zorder=5)
+    lc.set_array(seg_spd)
+    lc.set_clim(0, vmax)
+    ax.add_collection(lc)
+    ax.plot(x[0], y[0], "o", ms=10, mfc="#10b981", mec="white", mew=1.6,
+            label="Start", zorder=6)
+    ax.plot(x[-1], y[-1], "s", ms=10, mfc="#e24b4a", mec="white", mew=1.6,
+            label="Sfârșit", zorder=6)
+
+    # margine de ~8% în jurul traseului
+    dx = (x.max() - x.min()) or 500
+    dy = (y.max() - y.min()) or 500
+    pad = 0.08
+    ax.set_xlim(x.min() - dx * pad, x.max() + dx * pad)
+    ax.set_ylim(y.min() - dy * pad, y.max() + dy * pad)
+    ax.set_aspect("equal")
+    ax.set_xticks([]); ax.set_yticks([])
+    ax.set_title(title, fontsize=10)
+    ax.legend(fontsize=8, loc="best", framealpha=0.9)
+
+    # Fundal de străzi (dale Carto Voyager — aspect apropiat de Google Maps)
+    try:
+        import contextily as cx
+        cx.add_basemap(ax, source=cx.providers.CartoDB.Voyager,
+                       attribution_size=5, zoom="auto")
+    except Exception:
+        # fără internet / dale indisponibile: fundal simplu cu grilă
+        ax.set_facecolor("#eef2f4")
+        ax.grid(alpha=0.25, linewidth=0.4)
+
+    cb = fig.colorbar(lc, ax=ax, fraction=0.035, pad=0.02)
+    cb.set_label("Viteză [km/h]", fontsize=8)
+    cb.ax.tick_params(labelsize=7)
+    return _fig_to_image(fig, width_cm=11.5)
+
+
 def _fmt_int(x) -> str:
     return f"{x:,.0f}".replace(",", " ")
 
@@ -380,6 +441,7 @@ def generate_pdf_report(
     eea_audit: dict | None = None,
     report_cycles: list[str] | None = None,
     main_cycle: str = "WLTC",
+    gps_tracks: dict | None = None,
 ) -> str:
     """
     Generează raportul PDF complet, cu watermark pe fiecare pagină.
@@ -530,8 +592,14 @@ def generate_pdf_report(
         story.append(PageBreak())
         story.append(Paragraph("3. Traiectoriile stării de încărcare", ss["H2x"]))
         for ci, (cyc, arch_soc) in enumerate(soc_data.items()):
-            block = [Paragraph(f"3.{ci+1}. Ciclul {cyc}", ss["H3x"]),
-                     _soc_chart(arch_soc, p)]
+            block = [Paragraph(f"3.{ci+1}. Ciclul {cyc}", ss["H3x"])]
+            if gps_tracks and cyc in gps_tracks and gps_tracks[cyc]:
+                block.append(Paragraph("Traseul parcurs (colorat după viteză):",
+                                       ss["Bodyx"]))
+                block.append(_route_map_chart(gps_tracks[cyc],
+                                              f"Traseu real · {cyc}"))
+                block.append(Spacer(1, 6))
+            block.append(_soc_chart(arch_soc, p))
             deltas = {a: (soc[-1] - soc[0]) * 100 for a, soc in arch_soc.items()}
             mins = {a: soc.min() * 100 for a, soc in arch_soc.items()}
             worst = max(deltas.items(), key=lambda kv: abs(kv[1]))

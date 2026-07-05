@@ -988,6 +988,10 @@ def page_export():
                                   (eea_rep["varianta"] == db_u["varianta"])]
                     if len(hit):
                         eea_audit["vehicle"] = hit.iloc[0].to_dict()
+            # Traseele GPS pentru ciclurile reale selectate (hartă în cap. 3)
+            _all_tracks = {**load_bundled_tracks(),
+                           **st.session_state.get("gps_tracks", {})}
+            gps_pdf = {c: _all_tracks[c] for c in sel_cycles if c in _all_tracks}
             out = os.path.join(tempfile.gettempdir(), "raport_simulare_hev.pdf")
             generate_pdf_report(p_used, econ_used, rows_pdf, tco_pdf, checks_pdf,
                                 cmp_pdf, soc_pdf, STRATEGY_LABELS[strat_used], out,
@@ -995,7 +999,8 @@ def page_export():
                                 sensitivity=sens_pdf,
                                 sens_arch_label=ARCH_LABELS["serie_paralel"],
                                 eea_audit=eea_audit,
-                                report_cycles=sel_cycles, main_cycle=main_cyc)
+                                report_cycles=sel_cycles, main_cycle=main_cyc,
+                                gps_tracks=gps_pdf)
         with open(out, "rb") as f:
             st.download_button("Descarcă raportul PDF", f,
                                file_name="raport_simulare_hev.pdf",

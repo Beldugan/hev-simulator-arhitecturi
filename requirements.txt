@@ -7,3 +7,4 @@ plotly>=5.18
 wltp==0.1.2a0
 requests>=2.31
 pydeck>=0.9
+contextily>=1.5
