@@ -162,6 +162,12 @@ def parse_torque_log(source, *, max_gap_s: float = 10.0,
 
     # Statistici
     dist_km = float(np.sum(speed / 3.6)) / 1000.0
+    if dist_km < 0.3 or (speed > 1.0).sum() < 10:
+        raise ValueError(
+            "Traseul nu conține deplasare utilă (distanță < 0,3 km sau vehicul "
+            "quasi-staționar). Verifică dacă înregistrarea Torque conține "
+            "viteză OBD nenulă — un log făcut cu motorul pornit dar mașina "
+            "oprită nu poate fi folosit ca ciclu de conducere.")
     moving = speed > 1.0
     n_stops = int(np.sum((~moving[1:]) & moving[:-1]))
 

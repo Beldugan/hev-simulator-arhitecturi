@@ -602,7 +602,8 @@ def page_simulare():
                          "Consum [L/100km]": r.consumption_L_100km,
                          "CO₂ [g/km]": r.co2_g_km,
                          "Cotă EV [%]": r.ev_share_pct,
-                         "Reducere [%]": round((base - r.consumption_L_100km) / base * 100, 1)})
+                         "Reducere [%]": (round((base - r.consumption_L_100km) / base * 100, 1)
+                                          if base and base > 0 else 0.0)})
     df = pd.DataFrame(rows)
     with st.expander("Rezultate detaliate", expanded=False):
         st.dataframe(df, use_container_width=True, hide_index=True, height=420)
@@ -916,13 +917,16 @@ def page_export():
                "capitolele cu grafice per ciclu.")
     if st.button("Generează raportul PDF", type="primary", disabled=not sel_cycles):
         with st.spinner("Se generează raportul…"):
+            def _reduc(a, c):
+                base = results["baseline"][c].consumption_L_100km
+                if not base or base <= 0:
+                    return 0.0
+                return round((base - results[a][c].consumption_L_100km) / base * 100, 1)
             rows_pdf = [{"Arhitectură": ARCH_LABELS[a], "Ciclu": c,
                          "Consum [L/100km]": results[a][c].consumption_L_100km,
                          "CO₂ [g/km]": results[a][c].co2_g_km,
                          "Cotă EV [%]": results[a][c].ev_share_pct,
-                         "Reducere [%]": round((results["baseline"][c].consumption_L_100km -
-                                                results[a][c].consumption_L_100km) /
-                                               results["baseline"][c].consumption_L_100km * 100, 1)}
+                         "Reducere [%]": _reduc(a, c)}
                         for a in ARCHITECTURES for c in cycles]
             tco_pdf = []
             for a in ARCHITECTURES:
