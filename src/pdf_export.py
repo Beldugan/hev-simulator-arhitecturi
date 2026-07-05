@@ -813,13 +813,17 @@ def generate_pdf_report(
         story.append(PageBreak())
         story.append(Paragraph("3. Traiectoriile stării de încărcare", ss["H2x"]))
         for ci, (cyc, arch_soc) in enumerate(soc_data.items()):
-            block = [Paragraph(f"3.{ci+1}. Ciclul {cyc}", ss["H3x"])]
-            if gps_tracks and cyc in gps_tracks and gps_tracks[cyc]:
+            has_map = bool(gps_tracks and cyc in gps_tracks and gps_tracks[cyc])
+            # Antetul (titlu + „Traseul parcurs" + harta) e ținut împreună, ca
+            # subtitlul să nu rămână orfan la baza paginii când harta nu încape.
+            header = [Paragraph(f"3.{ci+1}. Ciclul {cyc}", ss["H3x"])]
+            rest = []
+            if has_map:
                 trk = gps_tracks[cyc]
-                block.append(Paragraph("Traseul parcurs (colorat după viteză):",
-                                       ss["Bodyx"]))
-                block.append(_route_map_chart(trk, f"Traseu real · {cyc}"))
-                block.append(Spacer(1, 4))
+                header.append(Paragraph("Traseul parcurs (colorat după viteză):",
+                                        ss["Bodyx"]))
+                header.append(_route_map_chart(trk, f"Traseu real · {cyc}"))
+                rest.append(Spacer(1, 4))
                 # Legendă start/sfârșit/distanță — fundal alb, fără antet colorat
                 la, lo = trk["lat"], trk["lon"]
                 start_a = _reverse_geocode(float(la[0]), float(lo[0]))
@@ -833,11 +837,11 @@ def generate_pdf_report(
                         Paragraph(end_a, ss["Bodyx"])],
                        [Paragraph("<b>Distanță GPS</b>", ss["Bodyx"]),
                         Paragraph(f"{dist_tot:.1f} km", ss["Bodyx"])]]
-                block.append(_plain_tbl(leg, [3.2 * cm, 13.0 * cm]))
+                rest.append(_plain_tbl(leg, [3.2 * cm, 13.0 * cm]))
                 streets, other_km = _street_breakdown(trk, dist_tot)
                 if streets:
-                    block.append(Spacer(1, 3))
-                    block.append(Paragraph(
+                    rest.append(Spacer(1, 3))
+                    rest.append(Paragraph(
                         "<b>Străzi și bulevarde principale parcurse:</b>",
                         ss["Bodyx"]))
                     srows = [["#", "Stradă / bulevard", "Distanță [km]"]]
@@ -848,19 +852,21 @@ def generate_pdf_report(
                                       f"{other_km:.1f}"])
                     srows.append(["", "TOTAL", f"{dist_tot:.1f}"])
                     t_str = _tbl(srows, [1.2 * cm, 12.0 * cm, 3.0 * cm])
-                    # rândul TOTAL îngroșat
                     t_str.setStyle(TableStyle([
                         ("FONTNAME", (0, -1), (-1, -1), _FONT_BOLD),
                         ("LINEABOVE", (0, -1), (-1, -1), 0.8,
                          colors.HexColor("#334155"))]))
-                    block.append(t_str)
-                block.append(Spacer(1, 6))
-            block.append(_soc_chart(arch_soc, p, cyc))
+                    rest.append(t_str)
+                rest.append(Spacer(1, 6))
+            else:
+                header.append(_soc_chart(arch_soc, p, cyc))
+            if has_map:
+                rest.append(_soc_chart(arch_soc, p, cyc))
             deltas = {a: (soc[-1] - soc[0]) * 100 for a, soc in arch_soc.items()}
             mins = {a: soc.min() * 100 for a, soc in arch_soc.items()}
             worst = max(deltas.items(), key=lambda kv: abs(kv[1]))
-            block.append(Spacer(1, 4))
-            block.append(_interp(ss,
+            rest.append(Spacer(1, 4))
+            rest.append(_interp(ss,
                 f"pe ciclul {cyc}, funcționarea este charge-sustaining: variația "
                 f"netă de SoC este "
                 + ", ".join(f"{ARCH_LABELS.get(a, a)}: {d:+.1f} pp" for a, d in deltas.items())
@@ -869,14 +875,11 @@ def generate_pdf_report(
                 + ", ".join(f"{ARCH_LABELS.get(a, a)}: {m:.0f}%" for a, m in mins.items())
                 + f" — rămâne peste limita de protecție de {p.SoC_min*100:.0f}%, "
                 f"confirmând că strategia EMS menține bateria în fereastra de operare."))
-            block.append(Spacer(1, 10))
-            # Ciclurile reale (cu hartă + legendă + străzi) sunt prea înalte
-            # pentru o singură pagină → le lăsăm să curgă; restul rămân unite.
-            if gps_tracks and cyc in gps_tracks and gps_tracks[cyc]:
-                story.append(CondPageBreak(6 * cm))
-                story.extend(block)
-            else:
-                story.append(KeepTogether(block))
+            rest.append(Spacer(1, 10))
+            # Antetul (titlu+hartă sau titlu+grafic SoC) rămâne mereu unit;
+            # restul curge natural după el.
+            story.append(KeepTogether(header))
+            story.extend(rest)
 
     # ---- 4. Profiluri de putere (pentru fiecare ciclu selectat) ----
     rep_cyc = [c for c in (report_cycles or ["WLTC"]) if c in (cycles or {})]
@@ -894,7 +897,7 @@ def generate_pdf_report(
                              "două arhitecturi pure.",
         }
         story.append(PageBreak())
-        story.append(Paragraph("4. Profilurile de putere pe cicluri", ss["H2x"]))
+        ch4_title = Paragraph("4. Profilurile de putere pe cicluri", ss["H2x"])
         sec = 0
         for cyc in rep_cyc:
             for a in hyb:
@@ -909,7 +912,12 @@ def generate_pdf_report(
                 fuel_tot_L = float(np.sum(r.fuel_rate_g_s)) / (p.fuel_density_kg_L * 1000)
                 co2_tot_g = float(np.sum(r.fuel_rate_g_s)) * (p.fuel_CO2_kg_L / p.fuel_density_kg_L)
                 n_starts = int(np.sum(on[1:] & ~on[:-1]) + (1 if on.any() and on[0] else 0))
-                block = [
+                block = []
+                # Titlul de capitol se alătură primului grafic, ca să nu rămână
+                # orfan singur în capul paginii noi.
+                if sec == 1:
+                    block.append(ch4_title)
+                block += [
                     Paragraph(f"4.{sec}. {ARCH_LABELS[a]} · {cyc}", ss["H3x"]),
                     _power_chart(r, cycles[cyc], f"{ARCH_LABELS[a]} · {cyc}"),
                     Spacer(1, 6),
@@ -929,11 +937,19 @@ def generate_pdf_report(
                         + arch_note.get(a, "")),
                     Spacer(1, 10),
                 ]
-                story.append(KeepTogether(block))
+                # Titlu-capitol + titlu-secțiune + primul grafic rămân împreună;
+                # restul (al doilea grafic + interpretare) poate curge.
+                if sec == 1:
+                    head = block[:3]   # titlu cap + titlu secț + power_chart
+                    tail = block[3:]
+                    story.append(KeepTogether(head))
+                    story.extend(tail)
+                else:
+                    story.append(KeepTogether(block))
 
         # ---- 5. BSFC (pentru fiecare ciclu selectat) ----
         story.append(PageBreak())
-        story.append(Paragraph("5. Punctele de operare pe harta BSFC", ss["H2x"]))
+        ch5_title = Paragraph("5. Punctele de operare pe harta BSFC", ss["H2x"])
         P_range = np.linspace(2, p.P_ICE_max_kW, 120) * 1000
         bmin = float(np.min([bsfc_map(P, p) for P in P_range]))
         for ci, cyc in enumerate(rep_cyc):
@@ -943,7 +959,10 @@ def generate_pdf_report(
                 P_on = P_on[P_on > 500]
                 bs[a] = float(np.mean([bsfc_map(P, p) for P in P_on])) if len(P_on) else 0.0
             best_bs = min(bs.items(), key=lambda kv: kv[1])
-            block = [
+            block = []
+            if ci == 0:
+                block.append(ch5_title)
+            block += [
                 Paragraph(f"5.{ci+1}. Ciclul {cyc}", ss["H3x"]),
                 _bsfc_chart(p, {a: results[a][cyc] for a in arch_order}, cyc),
                 Spacer(1, 4),
@@ -1030,17 +1049,41 @@ def generate_pdf_report(
             f"({total_pass/total_checks*100:.0f}%). Verificările acoperă: SoC în "
             f"fereastra de operare, puteri sub limitele componentelor, bilanț "
             f"energetic închis și plauzibilitatea consumului."))
-        story.append(Paragraph(f"7.2. Detaliu: Paralel · {main_cycle}", ss["H3x"]))
-    hdr = ["Verificare", "Status", "Detalii"]
-    _cell = ParagraphStyle("vcell", fontName=_FONT_MAIN, fontSize=8,
-                           leading=10, textColor=INK)
-    rows = [hdr]
-    for c in validation_checks:
-        col = "#059669" if c["status"] == "PASS" else "#FF3B30"
-        status_p = Paragraph(f'<b><font color="{col}">{c["status"]}</font></b>', _cell)
-        rows.append([c["check"], status_p, c["detail"]])
-    t = _tbl(rows, [6 * cm, 1.8 * cm, 9 * cm])
-    story.append(t)
+        story.append(Paragraph("7.2. Detaliu pe fiecare combinație arhitectură × ciclu",
+                               ss["H3x"]))
+        _cell = ParagraphStyle("vcell", fontName=_FONT_MAIN, fontSize=8,
+                               leading=10, textColor=INK)
+        hdr = ["Verificare", "Status", "Detalii"]
+        for a in arch_order:
+            for c in cycles:
+                checks = physical_validation(results[a][c], p)
+                rows = [hdr]
+                for ck in checks:
+                    col = "#059669" if ck["status"] == "PASS" else "#FF3B30"
+                    status_p = Paragraph(
+                        f'<b><font color="{col}">{ck["status"]}</font></b>', _cell)
+                    rows.append([ck["check"], status_p, ck["detail"]])
+                n_ok = sum(1 for ck in checks if ck["status"] == "PASS")
+                sub = [
+                    Paragraph(f"{ARCH_LABELS[a]} · {c}"
+                              f" — {n_ok}/{len(checks)} verificări trecute",
+                              ss["Bodyx"]),
+                    _tbl(rows, [6 * cm, 1.8 * cm, 9 * cm]),
+                    Spacer(1, 8),
+                ]
+                story.append(KeepTogether(sub))
+    else:
+        # fără date complete: doar combinația transmisă
+        _cell = ParagraphStyle("vcell", fontName=_FONT_MAIN, fontSize=8,
+                               leading=10, textColor=INK)
+        hdr = ["Verificare", "Status", "Detalii"]
+        rows = [hdr]
+        for c in validation_checks:
+            col = "#059669" if c["status"] == "PASS" else "#FF3B30"
+            status_p = Paragraph(
+                f'<b><font color="{col}">{c["status"]}</font></b>', _cell)
+            rows.append([c["check"], status_p, c["detail"]])
+        story.append(_tbl(rows, [6 * cm, 1.8 * cm, 9 * cm]))
 
     # ---- 7.3. Audit EEA (dacă raportul există) ----
     if eea_audit:
