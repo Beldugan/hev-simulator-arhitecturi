@@ -106,3 +106,16 @@ termic, CO₂ ponderat la unele PHEV) sunt estimări de segment, marcate explici
 (Regulamentul UE 2019/631) se face local cu `tools/verify_eea.py` — vezi
 instrucțiunile din antetul scriptului (setul EEA are milioane de rânduri și se
 descarcă separat).
+
+## Trasee reale (OBD-II / Torque)
+
+Pe lângă ciclurile standard (WLTC, UDDS, HWFET), aplicația include două trasee
+reale înregistrate prin OBD-II în zona Constanța–Năvodari cu aplicația Torque:
+`Real urban (Constanța)` (~13 km, regim urban) și `Real mixt (Constanța)`
+(~17 km, periurban). Sunt reeșantionate la 1 Hz, cu staționările și pauzele de
+înregistrare decupate (`src/obd_import.py`).
+
+Poți importa trasee proprii din bara laterală → „Traseu real (OBD-II / Torque)":
+încarci logul CSV exportat din Torque, iar aplicația îl transformă în ciclu
+selectabil și, dacă logul conține MAF, estimează și consumul real măsurat al
+vehiculului — util pentru validarea configurației baseline a modelului.

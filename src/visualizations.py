@@ -289,6 +289,19 @@ CYCLE_INFO: dict[str, str] = {
         "medie ~77 km/h. Este cel mai defavorabil hibridelor: frânare "
         "regenerativă aproape absentă, motorul termic funcționează cvasi-permanent."
     ),
+    "Real urban (Constanța)": (
+        "**Traseu real urban** — înregistrat prin OBD-II (aplicația Torque) pe un "
+        "vehicul propriu, pe naveta zilnică prin Constanța. ~13,4 km, cu opriri "
+        "frecvente la semafoare — regim urban autentic, în care avantajul "
+        "hibridelor (rulare electrică, recuperare la frânare) este maxim. Profil "
+        "de viteză reeșantionat la 1 Hz din date reale."
+    ),
+    "Real mixt (Constanța)": (
+        "**Traseu real mixt** — înregistrat prin OBD-II pe un vehicul propriu, pe "
+        "un parcurs periurban Constanța–Năvodari. ~17,4 km, cu mai puține opriri "
+        "și viteze susținute (până la ~78 km/h) — regim mixt, mai apropiat de "
+        "condițiile de rulare constantă. Profil reeșantionat la 1 Hz din date reale."
+    ),
 }
 
 # Limitele fazelor WLTC clasa 3b [s] (Low | Medium | High | Extra-High)

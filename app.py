@@ -31,6 +31,7 @@ from visualizations import (plot_soc_trajectory, plot_power_profile, plot_bsfc_m
                             plot_cycle_live, plot_ignition_scatter,
                             cycle_stats, ignition_events, CYCLE_INFO, set_dark)
 from pdf_export import generate_pdf_report
+from obd_import import parse_torque_log, build_track_map
 
 # ======================================================================
 #  Configurare pagină + CSS profesional
@@ -276,11 +277,31 @@ def load_cycles() -> dict:
     dd = os.path.join(here, "data")
     cycles = {}
     for label, fname in [("WLTC", "wltc_class3b_reference.csv"),
-                         ("UDDS", "udds.csv"), ("HWFET", "hwfet.csv")]:
+                         ("UDDS", "udds.csv"), ("HWFET", "hwfet.csv"),
+                         ("Real urban (Constanța)", "real_urban_constanta.csv"),
+                         ("Real mixt (Constanța)", "real_mixt_constanta.csv")]:
         path = os.path.join(dd, fname)
         if os.path.exists(path):
             cycles[label] = pd.read_csv(path)["speed_kmh"].values
     return cycles
+
+
+@st.cache_data
+def load_bundled_tracks() -> dict:
+    """Traseele GPS pre-salvate pentru ciclurile reale incluse în aplicație."""
+    import json
+    here = os.path.dirname(os.path.abspath(__file__))
+    dd = os.path.join(here, "data")
+    tracks = {}
+    for label, fn in [("Real urban (Constanța)", "real_urban_constanta_track.json"),
+                      ("Real mixt (Constanța)", "real_mixt_constanta_track.json")]:
+        p = os.path.join(dd, fn)
+        if os.path.exists(p):
+            try:
+                tracks[label] = json.load(open(p, encoding="utf-8"))
+            except Exception:
+                pass
+    return tracks
 
 
 def params_from_widgets(defaults: VehicleParams | None = None) -> VehicleParams:
@@ -494,6 +515,35 @@ with st.sidebar:
 cycles = load_cycles()
 PRICE_MAP = {"baseline": 0.84, "serie": 0.98, "paralel": 1.00, "serie_paralel": 1.04}
 
+# --- Import de trasee reale OBD-II (Torque) ca ciclu propriu ---------------
+with st.sidebar:
+    with st.expander("Traseu real (OBD-II / Torque)", expanded=False):
+        st.caption("Încarcă un log CSV exportat din aplicația Torque (înregistrat "
+                   "prin adaptor OBD-II). Traseul devine ciclu selectabil, "
+                   "reeșantionat la 1 Hz, cu staționările decupate.")
+        obd_file = st.file_uploader("Log Torque (CSV)", type=["csv"], key="obd_up")
+        obd_name = st.text_input("Nume traseu", "Traseul meu", key="obd_name")
+        if obd_file is not None:
+            try:
+                res = parse_torque_log(obd_file)
+                label = f"Real: {obd_name}"
+                cycles[label] = res["speed_kmh"]
+                st.session_state["obd_real_consum"] = res["consumption_L_100km"]
+                if res.get("gps_track"):
+                    st.session_state["gps_tracks"] = st.session_state.get("gps_tracks", {})
+                    st.session_state["gps_tracks"][label] = res["gps_track"]
+                st.success(f"Traseu adăugat: {res['distance_km']:.1f} km · "
+                           f"{res['duration_s']//60} min · v_max "
+                           f"{res['v_max']:.0f} km/h · {res['n_stops']} opriri")
+                if res["consumption_L_100km"]:
+                    st.caption(f"Consum real măsurat (din MAF): "
+                               f"**{res['consumption_L_100km']:.2f} L/100 km** — "
+                               f"util pentru validarea configurației baseline.")
+                for w in res["warnings"]:
+                    st.caption(f"• {w}")
+            except Exception as e:
+                st.warning(f"Log neinterpretabil: {e}")
+
 
 # ======================================================================
 #  Rularea simulărilor (cu cache pe sesiune)
@@ -576,6 +626,19 @@ def page_simulare():
         # --- Ce înseamnă ciclul selectat ---
         st.markdown("##### Despre ciclul selectat")
         st.markdown(CYCLE_INFO.get(sel_cyc, ""))
+
+        # Harta traseului real, dacă ciclul selectat are traseu GPS
+        _tracks = {**load_bundled_tracks(),
+                   **st.session_state.get("gps_tracks", {})}
+        if sel_cyc in _tracks:
+            deck = build_track_map(_tracks[sel_cyc])
+            if deck is not None:
+                st.markdown("##### Traseul parcurs")
+                st.pydeck_chart(deck, use_container_width=True)
+                st.caption("Traseu real înregistrat prin OBD-II. Culoarea liniei "
+                           "reflectă viteza: albastru = oprit/lent, verde-galben = "
+                           "mediu, roșu = viteză mare. Marcaje: verde = start, "
+                           "roșu = sfârșit.")
         st.caption("Valorile de mai jos sunt calculate din profilul de viteză "
                    "efectiv încărcat în aplicație:")
         cs = cycle_stats(cycles[sel_cyc])
