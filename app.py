@@ -12,6 +12,7 @@ import json
 import os
 import sys
 import tempfile
+from datetime import datetime
 from dataclasses import fields as dc_fields
 
 import numpy as np
@@ -1006,8 +1007,13 @@ def page_export():
                                 report_cycles=sel_cycles, main_cycle=main_cyc,
                                 gps_tracks=gps_pdf)
         with open(out, "rb") as f:
+            import re as _re
+            _now = datetime.now().strftime("%d-%m-%y_%H:%M")
+            _veh = p_used.name if getattr(p_used, "name", "") else "vehicul"
+            _veh = _re.sub(r"[^\w\-]+", "_", _veh).strip("_")
+            _fname = f"Simulare_{_now}_{_veh}.pdf"
             st.download_button("Descarcă raportul PDF", f,
-                               file_name="raport_simulare_hev.pdf",
+                               file_name=_fname,
                                mime="application/pdf", type="primary")
         st.success("Raport generat cu succes.")
 

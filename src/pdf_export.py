@@ -23,12 +23,14 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table,
+from reportlab.platypus import (SimpleDocTemplate, BaseDocTemplate, PageTemplate,
+                                Frame, NextPageTemplate,
+                                Paragraph, Spacer, Table,
                                 TableStyle, Image, PageBreak, CondPageBreak,
                                 KeepTogether)
 
@@ -173,6 +175,68 @@ def _fig_to_image(fig, width_cm: float = 16.5) -> Image:
     return img
 
 
+def _haversine_km(la1, lo1, la2, lo2):
+    R = 6371.0
+    p = np.pi / 180
+    a = (np.sin((la2 - la1) * p / 2) ** 2 +
+         np.cos(la1 * p) * np.cos(la2 * p) * np.sin((lo2 - lo1) * p / 2) ** 2)
+    return 2 * R * np.arcsin(np.sqrt(a))
+
+
+def _reverse_geocode(lat: float, lon: float) -> str:
+    """Adresă aproximativă pentru o coordonată (Nominatim/OSM). Necesită
+    internet; la eșec întoarce coordonatele formatate."""
+    try:
+        import requests
+        r = requests.get(
+            "https://nominatim.openstreetmap.org/reverse",
+            params={"lat": lat, "lon": lon, "format": "json", "zoom": 18,
+                    "addressdetails": 1},
+            headers={"User-Agent": "hev-simulator/1.0 (dissertation)"},
+            timeout=6)
+        a = r.json().get("address", {})
+        road = a.get("road") or a.get("pedestrian") or a.get("neighbourhood", "")
+        city = a.get("city") or a.get("town") or a.get("village") or ""
+        parts = [x for x in (road, city) if x]
+        return ", ".join(parts) if parts else f"{lat:.5f}, {lon:.5f}"
+    except Exception:
+        return f"{lat:.5f}, {lon:.5f}"
+
+
+def _street_breakdown(track: dict, max_streets: int = 8) -> list[tuple]:
+    """Enumeră străzile/bulevardele principale parcurse și km pe fiecare, prin
+    geocodare inversă a unor puncte eșantionate de-a lungul traseului. Necesită
+    internet; la eșec întoarce listă goală (harta rămâne fără această secțiune)."""
+    try:
+        import requests  # noqa: F401
+    except Exception:
+        return []
+    lat = np.asarray(track["lat"], dtype=float)
+    lon = np.asarray(track["lon"], dtype=float)
+    n = len(lat)
+    if n < 3:
+        return []
+    # distanțe cumulate între puncte consecutive
+    seg_km = _haversine_km(lat[:-1], lon[:-1], lat[1:], lon[1:])
+    # eșantionează la fiecare ~400 m ca să nu supraîncarce Nominatim
+    streets = {}
+    acc = 0.0
+    last_road = None
+    step_km = 0.4
+    since = 0.0
+    for i in range(n - 1):
+        since += seg_km[i]
+        if since >= step_km or i == n - 2:
+            road = _reverse_geocode(float(lat[i]), float(lon[i]))
+            road = road.split(",")[0]  # doar numele străzii
+            last_road = road
+            since = 0.0
+        if last_road:
+            streets[last_road] = streets.get(last_road, 0.0) + seg_km[i]
+    ordered = sorted(streets.items(), key=lambda kv: kv[1], reverse=True)
+    return [(r, round(km, 1)) for r, km in ordered[:max_streets] if km >= 0.1]
+
+
 def _route_map_chart(track: dict, title: str) -> Image:
     """Hartă a traseului GPS pentru PDF, colorată după viteză, cu fundal de
     străzi tip Google Maps (dale OpenStreetMap/Carto prin contextily).
@@ -275,7 +339,8 @@ def _bars_chart(values: dict[str, dict[str, float]], ylabel: str, title: str,
     return _fig_to_image(fig)
 
 
-def _soc_chart(soc_data: dict[str, np.ndarray], p: VehicleParams) -> Image:
+def _soc_chart(soc_data: dict[str, np.ndarray], p: VehicleParams,
+               cycle_name: str = "") -> Image:
     fig, ax = plt.subplots(figsize=(8.5, 3.2))
     for arch, soc in soc_data.items():
         ax.plot(soc * 100, label=ARCH_LABELS.get(arch, arch),
@@ -283,7 +348,8 @@ def _soc_chart(soc_data: dict[str, np.ndarray], p: VehicleParams) -> Image:
     ax.axhline(p.SoC_target * 100, ls="--", c="#94a3b8", lw=1, label="Țintă")
     ax.axhline(p.SoC_min * 100, ls=":", c="#dc2626", lw=1, label="Min")
     ax.set_xlabel("Timp [s]"); ax.set_ylabel("SoC [%]")
-    ax.set_title("Traiectoriile stării de încărcare (WLTC)")
+    suffix = f" ({cycle_name})" if cycle_name else ""
+    ax.set_title(f"Traiectoriile stării de încărcare{suffix}")
     ax.legend(fontsize=8, ncol=3); ax.grid(alpha=0.3)
     return _fig_to_image(fig)
 
@@ -304,7 +370,8 @@ def _power_chart(r: SimulationResult, speed_kmh: np.ndarray, title: str) -> Imag
 
 
 def _bsfc_chart(p: VehicleParams,
-                results_wltc: dict[str, SimulationResult]) -> Image:
+                results_wltc: dict[str, SimulationResult],
+                cycle_name: str = "") -> Image:
     hyb = [a for a in results_wltc if a != "baseline"]
     fig, axes = plt.subplots(1, len(hyb), figsize=(8.5, 2.9), sharey=True)
     axes = np.atleast_1d(axes)
@@ -323,7 +390,8 @@ def _bsfc_chart(p: VehicleParams,
         ax.set_title(ARCH_LABELS.get(a, a), fontsize=9)
         ax.set_xlabel("kW"); ax.grid(alpha=0.3)
     axes[0].set_ylabel("BSFC [g/kWh]")
-    fig.suptitle("Punctele de operare ale motorului pe harta BSFC (WLTC)",
+    suffix = f" ({cycle_name})" if cycle_name else ""
+    fig.suptitle(f"Punctele de operare ale motorului pe harta BSFC{suffix}",
                  fontsize=10, y=1.02)
     return _fig_to_image(fig)
 
@@ -594,12 +662,37 @@ def generate_pdf_report(
         for ci, (cyc, arch_soc) in enumerate(soc_data.items()):
             block = [Paragraph(f"3.{ci+1}. Ciclul {cyc}", ss["H3x"])]
             if gps_tracks and cyc in gps_tracks and gps_tracks[cyc]:
+                trk = gps_tracks[cyc]
                 block.append(Paragraph("Traseul parcurs (colorat după viteză):",
                                        ss["Bodyx"]))
-                block.append(_route_map_chart(gps_tracks[cyc],
-                                              f"Traseu real · {cyc}"))
+                block.append(_route_map_chart(trk, f"Traseu real · {cyc}"))
+                block.append(Spacer(1, 4))
+                # Legendă: adresa de start/sfârșit + străzile principale cu km
+                la, lo = trk["lat"], trk["lon"]
+                start_a = _reverse_geocode(float(la[0]), float(lo[0]))
+                end_a = _reverse_geocode(float(la[-1]), float(lo[-1]))
+                dist_tot = float(np.sum(_haversine_km(
+                    np.asarray(la[:-1]), np.asarray(lo[:-1]),
+                    np.asarray(la[1:]), np.asarray(lo[1:]))))
+                leg = [[Paragraph("<b>Start</b>", ss["Bodyx"]),
+                        Paragraph(start_a, ss["Bodyx"])],
+                       [Paragraph("<b>Sfârșit</b>", ss["Bodyx"]),
+                        Paragraph(end_a, ss["Bodyx"])],
+                       [Paragraph("<b>Distanță GPS</b>", ss["Bodyx"]),
+                        Paragraph(f"{dist_tot:.1f} km", ss["Bodyx"])]]
+                block.append(_tbl(leg, [3.2 * cm, 13.0 * cm]))
+                streets = _street_breakdown(trk)
+                if streets:
+                    block.append(Spacer(1, 3))
+                    block.append(Paragraph(
+                        "<b>Străzi și bulevarde principale parcurse:</b>",
+                        ss["Bodyx"]))
+                    srows = [["#", "Stradă / bulevard", "Distanță [km]"]]
+                    for i, (name, km) in enumerate(streets, 1):
+                        srows.append([str(i), name, f"{km:.1f}"])
+                    block.append(_tbl(srows, [1.2 * cm, 12.0 * cm, 3.0 * cm]))
                 block.append(Spacer(1, 6))
-            block.append(_soc_chart(arch_soc, p))
+            block.append(_soc_chart(arch_soc, p, cyc))
             deltas = {a: (soc[-1] - soc[0]) * 100 for a, soc in arch_soc.items()}
             mins = {a: soc.min() * 100 for a, soc in arch_soc.items()}
             worst = max(deltas.items(), key=lambda kv: abs(kv[1]))
@@ -614,7 +707,13 @@ def generate_pdf_report(
                 + f" — rămâne peste limita de protecție de {p.SoC_min*100:.0f}%, "
                 f"confirmând că strategia EMS menține bateria în fereastra de operare."))
             block.append(Spacer(1, 10))
-            story.append(KeepTogether(block))
+            # Ciclurile reale (cu hartă + legendă + străzi) sunt prea înalte
+            # pentru o singură pagină → le lăsăm să curgă; restul rămân unite.
+            if gps_tracks and cyc in gps_tracks and gps_tracks[cyc]:
+                story.append(CondPageBreak(6 * cm))
+                story.extend(block)
+            else:
+                story.append(KeepTogether(block))
 
     # ---- 4. Profiluri de putere (pentru fiecare ciclu selectat) ----
     rep_cyc = [c for c in (report_cycles or ["WLTC"]) if c in (cycles or {})]
@@ -683,7 +782,7 @@ def generate_pdf_report(
             best_bs = min(bs.items(), key=lambda kv: kv[1])
             block = [
                 Paragraph(f"5.{ci+1}. Ciclul {cyc}", ss["H3x"]),
-                _bsfc_chart(p, {a: results[a][cyc] for a in arch_order}),
+                _bsfc_chart(p, {a: results[a][cyc] for a in arch_order}, cyc),
                 Spacer(1, 4),
                 _interp(ss,
                     f"pe ciclul {cyc}, consumul specific minim al motorului este "
@@ -737,7 +836,14 @@ def generate_pdf_report(
     story.append(_interp(ss, tco_txt))
 
     # ---- 7. Validare fizică ----
-    story.append(PageBreak())
+    # Tabelul 7.1 (arhitecturi × cicluri) devine prea lat pentru A4 portret când
+    # sunt multe cicluri → comutăm capitolul 7 pe pagină în peisaj (landscape).
+    wide7 = has_full and len(cycles) >= 5
+    if wide7:
+        story.append(NextPageTemplate("landscape"))
+        story.append(PageBreak())
+    else:
+        story.append(PageBreak())
     story.append(Paragraph("7. Validarea fizică a simulărilor", ss["H2x"]))
     if has_full:
         sum_hdr = ["Arhitectură"] + list(cycles.keys())
@@ -798,6 +904,10 @@ def generate_pdf_report(
                      str(veh.get("status", "–"))]]
             story.append(_tbl(rows, [5.2 * cm, 2.8 * cm, 2.8 * cm,
                                      2.6 * cm, 3.4 * cm]))
+
+    # revenire la portret după capitolul 7 (dacă a fost în peisaj)
+    if wide7:
+        story.append(NextPageTemplate("portrait"))
 
     # ---- 8. Analiza de sensibilitate ----
     if sensitivity:
@@ -891,10 +1001,22 @@ def generate_pdf_report(
         "calibrarea parametrilor. Ciclul WLTC provine din biblioteca `wltp` (UNECE GTR15).",
         ss["Metax"]))
 
-    doc = SimpleDocTemplate(out_path, pagesize=A4,
-                            topMargin=1.6 * cm, bottomMargin=1.8 * cm,
-                            leftMargin=1.8 * cm, rightMargin=1.8 * cm,
-                            title="Raport de simulare — Arhitecturi de propulsie hibridă",
-                            author="A.M. Beldugan, FIMIM, Univ. Ovidius Constanța")
-    doc.build(story, onFirstPage=_watermark, onLaterPages=_watermark)
+    doc = BaseDocTemplate(out_path, pagesize=A4,
+                          topMargin=1.6 * cm, bottomMargin=1.8 * cm,
+                          leftMargin=1.8 * cm, rightMargin=1.8 * cm,
+                          title="Raport de simulare — Arhitecturi de propulsie hibridă",
+                          author="A.M. Beldugan, FIMIM, Univ. Ovidius Constanța")
+    pw, ph = A4
+    lw, lh = landscape(A4)
+    portrait_frame = Frame(1.8 * cm, 1.8 * cm, pw - 3.6 * cm, ph - 3.4 * cm,
+                           id="portrait")
+    land_frame = Frame(1.8 * cm, 1.8 * cm, lw - 3.6 * cm, lh - 3.4 * cm,
+                       id="land")
+    doc.addPageTemplates([
+        PageTemplate(id="portrait", frames=[portrait_frame],
+                     pagesize=A4, onPage=_watermark),
+        PageTemplate(id="landscape", frames=[land_frame],
+                     pagesize=landscape(A4), onPage=_watermark),
+    ])
+    doc.build(story)
     return out_path
