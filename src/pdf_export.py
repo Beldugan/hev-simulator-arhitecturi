@@ -22,6 +22,36 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+# --- Stil iOS pentru toate graficele (System colors, aspect curat) ----------
+_IOS_MPL = {
+    "font.size": 9,
+    "axes.edgecolor": "#D1D1D6",       # separator iOS
+    "axes.linewidth": 0.8,
+    "axes.facecolor": "#FFFFFF",
+    "axes.grid": True,
+    "axes.axisbelow": True,
+    "axes.titlesize": 10,
+    "axes.titleweight": "semibold",
+    "axes.titlecolor": "#1C1C1E",
+    "axes.labelcolor": "#3A3A3C",
+    "axes.labelsize": 8.5,
+    "axes.spines.top": False,          # fără chenar sus/dreapta (aspect iOS)
+    "axes.spines.right": False,
+    "grid.color": "#E5E5EA",           # grid foarte subtil iOS
+    "grid.linewidth": 0.6,
+    "grid.alpha": 1.0,
+    "xtick.color": "#8E8E93",
+    "ytick.color": "#8E8E93",
+    "xtick.labelsize": 8,
+    "ytick.labelsize": 8,
+    "figure.facecolor": "#FFFFFF",
+    "legend.frameon": False,           # legende fără chenar
+    "legend.fontsize": 8,
+    "lines.linewidth": 1.8,
+    "lines.solid_capstyle": "round",
+}
+matplotlib.rcParams.update(_IOS_MPL)
+
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -39,9 +69,13 @@ from tco_model import EconomicParams
 from analysis import physical_validation
 from ems_strategies import ARCH_LABELS
 
-INK = colors.HexColor("#0f172a")
-HDR = colors.HexColor("#1e40af")
-LIGHT = colors.HexColor("#eff6ff")
+# Paleta iOS light (System colors)
+INK = colors.HexColor("#1C1C1E")        # label (aproape negru iOS)
+HDR = colors.HexColor("#007AFF")        # system blue
+LIGHT = colors.HexColor("#F2F2F7")      # secondary system background (gri-alb)
+IOS_GRAY = colors.HexColor("#8E8E93")   # secondary label
+IOS_SEP = colors.HexColor("#D1D1D6")    # separator
+IOS_CARD = colors.HexColor("#FFFFFF")   # card background
 
 WATERMARK_TEXT = "© 2026 A.M. Beldugan, FIMIM, Univ. Ovidius Constanța"
 
@@ -88,22 +122,48 @@ def _register_fonts() -> None:
 #  Watermark — desenat în conținutul fiecărei pagini
 # ======================================================================
 def _watermark(cv, doc) -> None:
-    """Linie de subsol cu copyright și numărul paginii, pe fiecare pagină.
+    """Linie de subsol cu copyright și numărul paginii + logo AR în colțul
+    dreapta-sus, pe fiecare pagină.
 
     Textul este scris în fluxul de conținut al paginii (canvas), nu ca
     adnotare/stamp — nu poate fi șters din editoarele PDF uzuale.
     """
     _register_fonts()
-    W, H = A4
+    # dimensiunea reală a paginii curente (portret sau peisaj)
+    W, H = doc.pagesize if hasattr(doc, "pagesize") else A4
+    try:
+        pw = cv._pagesize
+        if pw:
+            W, H = pw
+    except Exception:
+        pass
     cv.saveState()
     cv.setFont(_FONT_MAIN, 7)
-    cv.setFillColor(colors.HexColor("#64748b"))
+    cv.setFillColor(colors.HexColor("#8E8E93"))
     cv.drawString(1.8 * cm, 1.0 * cm, WATERMARK_TEXT)
     cv.drawRightString(W - 1.8 * cm, 1.0 * cm, f"Pagina {doc.page}")
-    cv.setStrokeColor(colors.HexColor("#cbd5e1"))
+    cv.setStrokeColor(colors.HexColor("#D1D1D6"))
     cv.setLineWidth(0.4)
     cv.line(1.8 * cm, 1.25 * cm, W - 1.8 * cm, 1.25 * cm)
     cv.restoreState()
+
+
+def _watermark_first(cv, doc) -> None:
+    """Prima pagină: subsol + logo AR semitransparent, poziționat sub blocul de
+    titlu (centrat-dreapta) ca să nu se suprapună cu textul."""
+    _watermark(cv, doc)
+    W, H = A4
+    logo = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "..", "assets", "logo_ar_50.png")
+    if os.path.exists(logo):
+        size = 3.0 * cm
+        try:
+            # colț dreapta-sus, dar coborât sub titlu (titlul e indentat la stânga)
+            cv.drawImage(logo, W - 1.8 * cm - size, H - 1.7 * cm - size,
+                         width=size, height=size, mask="auto",
+                         preserveAspectRatio=True)
+        except Exception:
+            pass
 
 
 # ======================================================================
@@ -115,15 +175,18 @@ def _styles():
     for name in ("Normal", "BodyText", "Heading1", "Heading2"):
         ss[name].fontName = _FONT_MAIN
     ss.add(ParagraphStyle("H1x", parent=ss["Heading1"], fontName=_FONT_BOLD,
-                          fontSize=17, textColor=HDR, spaceAfter=10))
+                          fontSize=17, textColor=HDR, spaceAfter=10,
+                          keepWithNext=True, rightIndent=3.4 * cm))
     ss.add(ParagraphStyle("H2x", parent=ss["Heading2"], fontName=_FONT_BOLD,
-                          fontSize=13, textColor=INK, spaceBefore=14, spaceAfter=6))
+                          fontSize=13, textColor=INK, spaceBefore=14, spaceAfter=6,
+                          keepWithNext=True))
     ss.add(ParagraphStyle("H3x", parent=ss["Heading2"], fontName=_FONT_BOLD,
-                          fontSize=11, textColor=INK, spaceBefore=10, spaceAfter=4))
+                          fontSize=11, textColor=INK, spaceBefore=10, spaceAfter=4,
+                          keepWithNext=True))
     ss.add(ParagraphStyle("Bodyx", parent=ss["BodyText"], fontName=_FONT_MAIN,
                           fontSize=9.5, leading=13.5, alignment=4))  # justify
     ss.add(ParagraphStyle("Metax", parent=ss["BodyText"], fontName=_FONT_MAIN,
-                          fontSize=8, textColor=colors.HexColor("#64748b")))
+                          fontSize=8, textColor=IOS_GRAY, rightIndent=3.6 * cm))
     return ss
 
 
@@ -139,7 +202,7 @@ def _tbl(data: list[list], col_widths=None) -> Table:
     cell = ParagraphStyle("cell", fontName=_FONT_MAIN, fontSize=8,
                           leading=10, textColor=INK)
     head = ParagraphStyle("cellhdr", fontName=_FONT_BOLD, fontSize=8,
-                          leading=10, textColor=colors.white)
+                          leading=10, textColor=INK)
 
     def _wrap(val, style):
         if isinstance(val, Paragraph):
@@ -150,17 +213,63 @@ def _tbl(data: list[list], col_widths=None) -> Table:
     wrapped += [[_wrap(c, cell) for c in row] for row in data[1:]]
 
     t = Table(wrapped, colWidths=col_widths, hAlign="LEFT")
-    t.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), HDR),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, LIGHT]),
-        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#cbd5e1")),
-        ("TOPPADDING", (0, 0), (-1, -1), 3.5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3.5),
-        ("LEFTPADDING", (0, 0), (-1, -1), 6),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+    # Stil iOS: antet gri-deschis cu text închis, fără linii verticale, doar
+    # separatoare orizontale fine între rânduri (aspect „grouped list" iOS).
+    style = [
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E5E5EA")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [IOS_CARD, LIGHT]),
+        ("LINEBELOW", (0, 0), (-1, -2), 0.4, IOS_SEP),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 9),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 9),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-    ]))
+    ]
+    t.setStyle(TableStyle(style))
+    t = _RoundedTable(t)
     return t
+
+
+from reportlab.platypus.flowables import Flowable
+
+
+class _RoundedTable(Flowable):
+    """Învelește un Table și îl desenează cu colțuri rotunjite (aspect de card
+    iOS): fundal alb, contur fin, rază de 8 pt. Tabelul interior nu are contur
+    exterior, doar separatoare orizontale."""
+    def __init__(self, table, radius=8, pad=0):
+        super().__init__()
+        self.table = table
+        self.radius = radius
+        self.pad = pad
+
+    def wrap(self, aw, ah):
+        w, h = self.table.wrap(aw, ah)
+        self._w, self._h = w, h
+        return w, h
+
+    def split(self, aw, ah):
+        # dacă nu încape, lasă tabelul intern să se împartă (fără card rotunjit)
+        return self.table.split(aw, ah)
+
+    def setStyle(self, style):
+        self.table.setStyle(style)
+
+    def draw(self):
+        c = self.canv
+        c.saveState()
+        c.setFillColor(IOS_CARD)
+        c.setStrokeColor(IOS_SEP)
+        c.setLineWidth(0.5)
+        c.roundRect(0, 0, self._w, self._h, self.radius, stroke=1, fill=1)
+        c.restoreState()
+        # clip la colțuri rotunjite, apoi desenează tabelul
+        c.saveState()
+        pth = c.beginPath()
+        pth.roundRect(0, 0, self._w, self._h, self.radius)
+        c.clipPath(pth, stroke=0, fill=0)
+        self.table.drawOn(c, 0, 0)
+        c.restoreState()
 
 
 def _fig_to_image(fig, width_cm: float = 16.5) -> Image:
@@ -203,38 +312,73 @@ def _reverse_geocode(lat: float, lon: float) -> str:
         return f"{lat:.5f}, {lon:.5f}"
 
 
-def _street_breakdown(track: dict, max_streets: int = 8) -> list[tuple]:
-    """Enumeră străzile/bulevardele principale parcurse și km pe fiecare, prin
-    geocodare inversă a unor puncte eșantionate de-a lungul traseului. Necesită
-    internet; la eșec întoarce listă goală (harta rămâne fără această secțiune)."""
+def _street_breakdown(track: dict, dist_total_km: float | None = None,
+                      max_streets: int = 10) -> tuple[list[tuple], float]:
+    """Enumeră străzile/bulevardele parcurse și km pe fiecare, prin geocodare
+    inversă a punctelor de-a lungul traseului.
+
+    Returnează (listă[(nume, km)], km_alte_segmente), unde km_alte_segmente
+    acoperă restul distanței (drumuri secundare + puncte fără nume geocodat),
+    astfel încât suma listei + alte + să corespundă distanței GPS totale.
+    Necesită internet; la eșec întoarce ([], 0.0).
+    """
     try:
         import requests  # noqa: F401
     except Exception:
-        return []
+        return [], 0.0
     lat = np.asarray(track["lat"], dtype=float)
     lon = np.asarray(track["lon"], dtype=float)
     n = len(lat)
     if n < 3:
-        return []
-    # distanțe cumulate între puncte consecutive
+        return [], 0.0
     seg_km = _haversine_km(lat[:-1], lon[:-1], lat[1:], lon[1:])
-    # eșantionează la fiecare ~400 m ca să nu supraîncarce Nominatim
-    streets = {}
-    acc = 0.0
-    last_road = None
-    step_km = 0.4
-    since = 0.0
+
+    named = {}          # nume stradă -> km
+    unnamed_km = 0.0     # segmente fără nume valid (coordonate)
+    step_km = 0.4        # geocodează la ~fiecare 400 m
+    since = step_km      # forțează geocodarea primului segment
+    cur_road = None
+
+    def _is_name(s: str) -> bool:
+        # un nume valid conține litere; coordonatele sunt doar cifre/punct/virgulă
+        return bool(s) and any(ch.isalpha() for ch in s)
+
     for i in range(n - 1):
         since += seg_km[i]
-        if since >= step_km or i == n - 2:
-            road = _reverse_geocode(float(lat[i]), float(lon[i]))
-            road = road.split(",")[0]  # doar numele străzii
-            last_road = road
+        if since >= step_km:
+            road = _reverse_geocode(float(lat[i]), float(lon[i])).split(",")[0]
+            cur_road = road if _is_name(road) else None
             since = 0.0
-        if last_road:
-            streets[last_road] = streets.get(last_road, 0.0) + seg_km[i]
-    ordered = sorted(streets.items(), key=lambda kv: kv[1], reverse=True)
-    return [(r, round(km, 1)) for r, km in ordered[:max_streets] if km >= 0.1]
+        if cur_road:
+            named[cur_road] = named.get(cur_road, 0.0) + seg_km[i]
+        else:
+            unnamed_km += seg_km[i]
+
+    ordered = sorted(named.items(), key=lambda kv: kv[1], reverse=True)
+    top = [(r, round(km, 1)) for r, km in ordered[:max_streets] if km >= 0.05]
+    # km de pe străzile numite dar în afara top-ului, adăugate la „alte segmente"
+    tail_km = sum(km for _, km in ordered[max_streets:])
+    other_km = unnamed_km + tail_km
+    # dacă avem distanța totală de referință, reconciliem (corecție de rotunjire)
+    if dist_total_km is not None:
+        acc = sum(km for _, km in top) + other_km
+        other_km += (dist_total_km - acc)
+    return top, max(other_km, 0.0)
+
+
+def _plain_tbl(data: list[list], col_widths=None) -> Flowable:
+    """Tabel cu fundal alb, fără antet colorat (pentru legende), aspect iOS."""
+    t = Table(data, colWidths=col_widths, hAlign="LEFT")
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), IOS_CARD),
+        ("LINEBELOW", (0, 0), (-1, -2), 0.4, IOS_SEP),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 9),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 9),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    ]))
+    return _RoundedTable(t)
 
 
 def _route_map_chart(track: dict, title: str) -> Image:
@@ -266,9 +410,9 @@ def _route_map_chart(track: dict, title: str) -> Image:
     lc.set_array(seg_spd)
     lc.set_clim(0, vmax)
     ax.add_collection(lc)
-    ax.plot(x[0], y[0], "o", ms=10, mfc="#10b981", mec="white", mew=1.6,
+    ax.plot(x[0], y[0], "o", ms=10, mfc="#34C759", mec="white", mew=1.6,
             label="Start", zorder=6)
-    ax.plot(x[-1], y[-1], "s", ms=10, mfc="#e24b4a", mec="white", mew=1.6,
+    ax.plot(x[-1], y[-1], "s", ms=10, mfc="#FF3B30", mec="white", mew=1.6,
             label="Sfârșit", zorder=6)
 
     # margine de ~8% în jurul traseului
@@ -289,7 +433,7 @@ def _route_map_chart(track: dict, title: str) -> Image:
                        attribution_size=5, zoom="auto")
     except Exception:
         # fără internet / dale indisponibile: fundal simplu cu grilă
-        ax.set_facecolor("#eef2f4")
+        ax.set_facecolor("#F2F2F7")
         ax.grid(alpha=0.25, linewidth=0.4)
 
     cb = fig.colorbar(lc, ax=ax, fraction=0.035, pad=0.02)
@@ -305,8 +449,10 @@ def _fmt_int(x) -> str:
 # ======================================================================
 #  Grafice (matplotlib)
 # ======================================================================
-_PALETTE = {"baseline": "#64748b", "serie": "#0ea5e9",
-            "paralel": "#10b981", "serie_paralel": "#8b5cf6"}
+_PALETTE = {"baseline": "#8E8E93",       # iOS gray
+            "serie": "#007AFF",          # iOS blue
+            "paralel": "#34C759",         # iOS green
+            "serie_paralel": "#AF52DE"}   # iOS purple
 
 
 def _bars_chart(values: dict[str, dict[str, float]], ylabel: str, title: str,
@@ -332,9 +478,11 @@ def _bars_chart(values: dict[str, dict[str, float]], ylabel: str, title: str,
         ax.set_xticklabels(wrapped, fontsize=8.5)
     ax.set_ylabel(ylabel)
     ax.set_title(title)
-    ax.legend(fontsize=8, ncol=len(archs))
-    ax.grid(axis="y", alpha=0.3)
-    ax.margins(y=0.15)
+    ax.legend(ncol=len(archs), loc="upper center",
+              bbox_to_anchor=(0.5, 1.14), columnspacing=1.2)
+    ax.grid(axis="y", color="#E5E5EA", linewidth=0.6)
+    ax.grid(axis="x", visible=False)
+    ax.margins(y=0.16)
     fig.tight_layout()
     return _fig_to_image(fig)
 
@@ -345,8 +493,8 @@ def _soc_chart(soc_data: dict[str, np.ndarray], p: VehicleParams,
     for arch, soc in soc_data.items():
         ax.plot(soc * 100, label=ARCH_LABELS.get(arch, arch),
                 color=_PALETTE.get(arch, "#333"), lw=1.4)
-    ax.axhline(p.SoC_target * 100, ls="--", c="#94a3b8", lw=1, label="Țintă")
-    ax.axhline(p.SoC_min * 100, ls=":", c="#dc2626", lw=1, label="Min")
+    ax.axhline(p.SoC_target * 100, ls="--", c="#C7C7CC", lw=1, label="Țintă")
+    ax.axhline(p.SoC_min * 100, ls=":", c="#FF3B30", lw=1, label="Min")
     ax.set_xlabel("Timp [s]"); ax.set_ylabel("SoC [%]")
     suffix = f" ({cycle_name})" if cycle_name else ""
     ax.set_title(f"Traiectoriile stării de încărcare{suffix}")
@@ -358,12 +506,12 @@ def _power_chart(r: SimulationResult, speed_kmh: np.ndarray, title: str) -> Imag
     t = np.arange(len(speed_kmh))
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8.5, 4.4), sharex=True,
                                    gridspec_kw={"height_ratios": [1, 2]})
-    ax1.fill_between(t, speed_kmh, color="#0f172a", alpha=0.08)
-    ax1.plot(t, speed_kmh, c="#0f172a", lw=0.9)
+    ax1.fill_between(t, speed_kmh, color="#3A3A3C", alpha=0.08)
+    ax1.plot(t, speed_kmh, c="#3A3A3C", lw=0.9)
     ax1.set_ylabel("km/h"); ax1.grid(alpha=0.3); ax1.set_title(title, fontsize=10)
-    ax2.plot(t, r.P_engine_W / 1000, c="#dc2626", lw=0.8, label="Motor termic")
-    ax2.plot(t, r.P_EM_W / 1000, c="#10b981", lw=0.8, label="Mașină electrică")
-    ax2.axhline(0, c="#94a3b8", lw=0.6)
+    ax2.plot(t, r.P_engine_W / 1000, c="#FF3B30", lw=0.8, label="Motor termic")
+    ax2.plot(t, r.P_EM_W / 1000, c="#34C759", lw=0.8, label="Mașină electrică")
+    ax2.axhline(0, c="#C7C7CC", lw=0.6)
     ax2.set_ylabel("kW"); ax2.set_xlabel("Timp [s]")
     ax2.legend(fontsize=8, ncol=2); ax2.grid(alpha=0.3)
     return _fig_to_image(fig)
@@ -379,14 +527,14 @@ def _bsfc_chart(p: VehicleParams,
     curve = np.array([bsfc_map(P, p) for P in P_range])
     bmin = curve.min()
     for ax, a in zip(axes, hyb):
-        ax.plot(P_range / 1000, curve, c="#0f172a", lw=1.4)
-        ax.axhspan(bmin, bmin * 1.05, color="#10b981", alpha=0.10)
+        ax.plot(P_range / 1000, curve, c="#3A3A3C", lw=1.4)
+        ax.axhspan(bmin, bmin * 1.05, color="#34C759", alpha=0.10)
         r = results_wltc[a]
         P_on = r.P_engine_W[r.P_engine_W > 500]
         if len(P_on):
             s = P_on[::max(1, len(P_on) // 250)]
             ax.scatter(s / 1000, [bsfc_map(P, p) for P in s],
-                       s=8, c="#f59e0b", alpha=0.40, zorder=3)
+                       s=8, c="#FF9500", alpha=0.40, zorder=3)
         ax.set_title(ARCH_LABELS.get(a, a), fontsize=9)
         ax.set_xlabel("kW"); ax.grid(alpha=0.3)
     axes[0].set_ylabel("BSFC [g/kWh]")
@@ -405,10 +553,10 @@ def _tornado_chart(effects: list[dict], base: float, xlabel: str,
     fig, ax = plt.subplots(figsize=(8.5, 0.42 * len(eff) + 1.2))
     for i, e in enumerate(eff):
         ax.barh(i, e["low"] - base, left=base, height=0.62,
-                color="#0ea5e9", label="−20%" if i == 0 else None)
+                color="#007AFF", label="−20%" if i == 0 else None)
         ax.barh(i, e["high"] - base, left=base, height=0.62,
-                color="#f59e0b", label="+20%" if i == 0 else None)
-    ax.axvline(base, c="#0f172a", lw=1.1)
+                color="#FF9500", label="+20%" if i == 0 else None)
+    ax.axvline(base, c="#3A3A3C", lw=1.1)
     ax.set_yticks(y); ax.set_yticklabels(labels, fontsize=8)
     ax.set_xlabel(xlabel); ax.set_title(title, fontsize=10)
     ax.legend(fontsize=8, loc="lower right"); ax.grid(axis="x", alpha=0.3)
@@ -432,27 +580,27 @@ def _live_final_chart(r: SimulationResult, speed_kmh: np.ndarray,
     fig, (a1, a2, a3) = plt.subplots(3, 1, figsize=(8.5, 5.8), sharex=True,
                                      gridspec_kw={"height_ratios": [1.3, 1, 1]})
     a1.plot(t, v, c="#3C3C43", lw=0.9)
-    a1.fill_between(t, np.where(on, v, 0.0), color="#dc2626", alpha=0.30,
+    a1.fill_between(t, np.where(on, v, 0.0), color="#FF3B30", alpha=0.30,
                     label="MCI pornit")
-    a1.fill_between(t, np.where(~on, v, 0.0), color="#10b981", alpha=0.30,
+    a1.fill_between(t, np.where(~on, v, 0.0), color="#34C759", alpha=0.30,
                     label="Electric (MCI oprit)")
     if len(starts):
-        a1.scatter(starts, v[starts], marker="^", s=26, c="#dc2626",
+        a1.scatter(starts, v[starts], marker="^", s=26, c="#FF3B30",
                    edgecolors="white", linewidths=0.6, zorder=3,
                    label="Pornire MCI")
     a1.set_ylabel("km/h"); a1.legend(fontsize=7, ncol=3, loc="upper left")
     a1.set_title(title, fontsize=10)
 
-    a2.plot(t, fuel_cum, c="#f59e0b", lw=1.6, label="Combustibil cumulat [L]")
+    a2.plot(t, fuel_cum, c="#FF9500", lw=1.6, label="Combustibil cumulat [L]")
     a2b = a2.twinx()
-    a2b.plot(t, co2_cum, c="#64748b", lw=1.4, ls=":", label="CO₂ cumulat [g]")
+    a2b.plot(t, co2_cum, c="#8E8E93", lw=1.4, ls=":", label="CO₂ cumulat [g]")
     a2.set_ylabel("L"); a2b.set_ylabel("g CO₂")
     h1, l1 = a2.get_legend_handles_labels()
     h2, l2 = a2b.get_legend_handles_labels()
     a2.legend(h1 + h2, l1 + l2, fontsize=7, loc="upper left")
 
-    a3.plot(t, soc, c="#8b5cf6", lw=1.4, label="SoC")
-    a3.axhline(p.SoC_target * 100, ls="--", c="#94a3b8", lw=1, label="SoC țintă")
+    a3.plot(t, soc, c="#AF52DE", lw=1.4, label="SoC")
+    a3.axhline(p.SoC_target * 100, ls="--", c="#C7C7CC", lw=1, label="SoC țintă")
     a3.set_ylabel("SoC [%]"); a3.set_xlabel("Timp [s]")
     a3.legend(fontsize=7, ncol=2, loc="upper left")
     for a in (a1, a2, a3):
@@ -462,8 +610,8 @@ def _live_final_chart(r: SimulationResult, speed_kmh: np.ndarray,
 
 def _tco_chart(tco_table: list[dict]) -> Image:
     labels = [t["Arhitectură"].split(" (")[0] for t in tco_table]
-    comps = [("Achiziție", "#3C3C43"), ("Energie", "#f59e0b"),
-             ("Mentenanță", "#0ea5e9"), ("Asigurare", "#94a3b8")]
+    comps = [("Achiziție", "#3C3C43"), ("Energie", "#FF9500"),
+             ("Mentenanță", "#007AFF"), ("Asigurare", "#C7C7CC")]
     fig, ax = plt.subplots(figsize=(8.5, 3.4))
     x = np.arange(len(labels))
     bottom = np.zeros(len(labels))
@@ -474,12 +622,12 @@ def _tco_chart(tco_table: list[dict]) -> Image:
             bottom += vals
     resid = np.array([t.get("Rezidual", 0) for t in tco_table], dtype=float)
     if resid.any():
-        ax.bar(x, -resid, 0.55, label="Valoare reziduală (−)", color="#10b981")
+        ax.bar(x, -resid, 0.55, label="Valoare reziduală (−)", color="#34C759")
     for i, t in enumerate(tco_table):
         ax.annotate(_fmt_int(t["TCO total"]) + " €", (i, bottom[i]),
                     textcoords="offset points", xytext=(0, 4),
                     ha="center", fontsize=8, fontweight="bold")
-    ax.axhline(0, c="#0f172a", lw=0.7)
+    ax.axhline(0, c="#3A3A3C", lw=0.7)
     ax.set_xticks(x); ax.set_xticklabels(labels)
     ax.set_ylabel("EUR")
     ax.set_title("Defalcarea costului total de proprietate (10 ani)")
@@ -582,12 +730,15 @@ def generate_pdf_report(
     hev_rows = [r for r in results_table if "Baseline" not in r["Arhitectură"]]
 
     # ---- 2.1 Consum ----
-    story.append(Paragraph("2.1. Consumul de combustibil", ss["H3x"]))
     if has_full:
         cons = {a: {c: results[a][c].consumption_L_100km for c in cycles}
                 for a in arch_order}
-        story.append(_bars_chart(cons, "Consum [L/100 km]",
-                                 "Consumul pe arhitecturi și cicluri"))
+        story.append(KeepTogether([
+            Paragraph("2.1. Consumul de combustibil", ss["H3x"]),
+            _bars_chart(cons, "Consum [L/100 km]",
+                        "Consumul pe arhitecturi și cicluri")]))
+    else:
+        story.append(Paragraph("2.1. Consumul de combustibil", ss["H3x"]))
     if hev_rows:
         best = min(hev_rows, key=lambda r: r["Consum [L/100km]"])
         cycles_order = []
@@ -615,11 +766,12 @@ def generate_pdf_report(
 
     if has_full:
         # ---- 2.2 CO2 ----
-        story.append(Paragraph("2.2. Emisiile de CO₂", ss["H3x"]))
         co2 = {a: {c: results[a][c].co2_g_km for c in cycles} for a in arch_order}
-        story.append(_bars_chart(co2, "CO₂ [g/km]",
-                                 "Emisiile de CO₂ pe arhitecturi și cicluri",
-                                 fmt="{:.0f}"))
+        story.append(KeepTogether([
+            Paragraph("2.2. Emisiile de CO₂", ss["H3x"]),
+            _bars_chart(co2, "CO₂ [g/km]",
+                        "Emisiile de CO₂ pe arhitecturi și cicluri",
+                        fmt="{:.0f}")]))
         all_co2 = [(a, c, co2[a][c]) for a in arch_order for c in cycles]
         lo = min(all_co2, key=lambda t: t[2]); hi = max(all_co2, key=lambda t: t[2])
         base_avg = np.mean([co2["baseline"][c] for c in cycles])
@@ -636,11 +788,12 @@ def generate_pdf_report(
             f"încadrarea în normele europene de flotă (95 g CO₂/km WLTP)."))
 
         # ---- 2.3 Cota EV ----
-        story.append(Paragraph("2.3. Cota de funcționare electrică (motor termic oprit)", ss["H3x"]))
         ev = {a: {c: results[a][c].ev_share_pct for c in cycles} for a in arch_order}
-        story.append(_bars_chart(ev, "Cotă EV [%]",
-                                 "Fracțiunea de timp cu motorul termic oprit",
-                                 fmt="{:.0f}"))
+        story.append(KeepTogether([
+            Paragraph("2.3. Cota de funcționare electrică (motor termic oprit)", ss["H3x"]),
+            _bars_chart(ev, "Cotă EV [%]",
+                        "Fracțiunea de timp cu motorul termic oprit",
+                        fmt="{:.0f}")]))
         ev_best = max(((a, c, ev[a][c]) for a in hyb for c in cycles),
                       key=lambda t: t[2])
         ev_urban = {a: ev[a].get("UDDS", max(ev[a].values())) for a in hyb}
@@ -667,7 +820,7 @@ def generate_pdf_report(
                                        ss["Bodyx"]))
                 block.append(_route_map_chart(trk, f"Traseu real · {cyc}"))
                 block.append(Spacer(1, 4))
-                # Legendă: adresa de start/sfârșit + străzile principale cu km
+                # Legendă start/sfârșit/distanță — fundal alb, fără antet colorat
                 la, lo = trk["lat"], trk["lon"]
                 start_a = _reverse_geocode(float(la[0]), float(lo[0]))
                 end_a = _reverse_geocode(float(la[-1]), float(lo[-1]))
@@ -680,8 +833,8 @@ def generate_pdf_report(
                         Paragraph(end_a, ss["Bodyx"])],
                        [Paragraph("<b>Distanță GPS</b>", ss["Bodyx"]),
                         Paragraph(f"{dist_tot:.1f} km", ss["Bodyx"])]]
-                block.append(_tbl(leg, [3.2 * cm, 13.0 * cm]))
-                streets = _street_breakdown(trk)
+                block.append(_plain_tbl(leg, [3.2 * cm, 13.0 * cm]))
+                streets, other_km = _street_breakdown(trk, dist_tot)
                 if streets:
                     block.append(Spacer(1, 3))
                     block.append(Paragraph(
@@ -690,7 +843,17 @@ def generate_pdf_report(
                     srows = [["#", "Stradă / bulevard", "Distanță [km]"]]
                     for i, (name, km) in enumerate(streets, 1):
                         srows.append([str(i), name, f"{km:.1f}"])
-                    block.append(_tbl(srows, [1.2 * cm, 12.0 * cm, 3.0 * cm]))
+                    if other_km >= 0.1:
+                        srows.append(["", "Alte segmente / drumuri secundare",
+                                      f"{other_km:.1f}"])
+                    srows.append(["", "TOTAL", f"{dist_tot:.1f}"])
+                    t_str = _tbl(srows, [1.2 * cm, 12.0 * cm, 3.0 * cm])
+                    # rândul TOTAL îngroșat
+                    t_str.setStyle(TableStyle([
+                        ("FONTNAME", (0, -1), (-1, -1), _FONT_BOLD),
+                        ("LINEABOVE", (0, -1), (-1, -1), 0.8,
+                         colors.HexColor("#334155"))]))
+                    block.append(t_str)
                 block.append(Spacer(1, 6))
             block.append(_soc_chart(arch_soc, p, cyc))
             deltas = {a: (soc[-1] - soc[0]) * 100 for a, soc in arch_soc.items()}
@@ -873,7 +1036,7 @@ def generate_pdf_report(
                            leading=10, textColor=INK)
     rows = [hdr]
     for c in validation_checks:
-        col = "#059669" if c["status"] == "PASS" else "#dc2626"
+        col = "#059669" if c["status"] == "PASS" else "#FF3B30"
         status_p = Paragraph(f'<b><font color="{col}">{c["status"]}</font></b>', _cell)
         rows.append([c["check"], status_p, c["detail"]])
     t = _tbl(rows, [6 * cm, 1.8 * cm, 9 * cm])
@@ -1014,7 +1177,9 @@ def generate_pdf_report(
                        id="land")
     doc.addPageTemplates([
         PageTemplate(id="portrait", frames=[portrait_frame],
-                     pagesize=A4, onPage=_watermark),
+                     pagesize=A4,
+                     onPage=lambda cv, d: (_watermark_first(cv, d) if d.page == 1
+                                           else _watermark(cv, d))),
         PageTemplate(id="landscape", frames=[land_frame],
                      pagesize=landscape(A4), onPage=_watermark),
     ])
