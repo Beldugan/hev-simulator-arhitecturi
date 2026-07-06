@@ -178,8 +178,7 @@ def _styles():
                           fontSize=17, textColor=HDR, spaceAfter=10,
                           keepWithNext=True, rightIndent=3.4 * cm))
     ss.add(ParagraphStyle("H2x", parent=ss["Heading2"], fontName=_FONT_BOLD,
-                          fontSize=13, textColor=INK, spaceBefore=14, spaceAfter=6,
-                          keepWithNext=True))
+                          fontSize=13, textColor=INK, spaceBefore=14, spaceAfter=6))
     ss.add(ParagraphStyle("H3x", parent=ss["Heading2"], fontName=_FONT_BOLD,
                           fontSize=11, textColor=INK, spaceBefore=10, spaceAfter=4,
                           keepWithNext=True))
@@ -937,13 +936,31 @@ def generate_pdf_report(
                         + arch_note.get(a, "")),
                     Spacer(1, 10),
                 ]
-                # Titlu-capitol + titlu-secțiune + primul grafic rămân împreună;
-                # restul (al doilea grafic + interpretare) poate curge.
+                # Titlul de capitol + titlul secțiunii + primul grafic într-un
+                # singur bloc unit (≈11 cm, încape mereu pe pagina nouă), ca
+                # titlul de capitol să nu rămână orfan. Restul curge după.
                 if sec == 1:
-                    head = block[:3]   # titlu cap + titlu secț + power_chart
-                    tail = block[3:]
-                    story.append(KeepTogether(head))
-                    story.extend(tail)
+                    story.append(KeepTogether([
+                        ch4_title,
+                        Paragraph(f"4.{sec}. {ARCH_LABELS[a]} · {cyc}", ss["H3x"]),
+                        _power_chart(r, cycles[cyc], f"{ARCH_LABELS[a]} · {cyc}"),
+                    ]))
+                    story.append(Spacer(1, 6))
+                    story.append(_live_final_chart(
+                        r, cycles[cyc], p,
+                        f"{ARCH_LABELS[a]} · {cyc} — derularea completă a ciclului"))
+                    story.append(Spacer(1, 3))
+                    story.append(_interp(ss,
+                        f"pe ciclul {cyc}, motorul termic funcționează {on_pct:.0f}% "
+                        f"din durată ({n_starts} porniri), cu o putere medie de "
+                        f"{p_mean:.1f} kW (σ = {p_std:.1f} kW); mașina electrică "
+                        f"atinge {pem_max:.1f} kW în tracțiune și recuperează "
+                        f"{e_regen:.2f} kWh prin frânare regenerativă. Se consumă "
+                        f"{fuel_tot_L:.2f} L de combustibil ({co2_tot_g:.0f} g CO₂), "
+                        f"acumulați în fazele cu banda roșie (MCI pornit); pe "
+                        f"segmentele verzi vehiculul rulează electric. "
+                        + arch_note.get(a, "")))
+                    story.append(Spacer(1, 10))
                 else:
                     story.append(KeepTogether(block))
 
