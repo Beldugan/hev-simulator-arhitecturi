@@ -166,6 +166,23 @@ st.markdown("""
         font-size: .85rem !important; margin: 0 !important;
     }
     div[data-testid="stPopover"] { width: auto !important; }
+
+    /* Panoul de explicații (popover) — poziționat fix, mai jos și centrat
+       pe orizontală, ca să nu mai depășească marginea de sus a ferestrei
+       atunci când declanșatorul „?" e aproape de vârful paginii (ex. lângă
+       „Strategia de management energetic"). */
+    div[data-testid="stPopoverBody"] {
+        position: fixed !important;
+        top: 16vh !important;
+        left: 50% !important;
+        right: auto !important;
+        bottom: auto !important;
+        transform: translateX(-50%) !important;
+        max-width: min(560px, 92vw) !important;
+        max-height: 70vh !important;
+        overflow-y: auto !important;
+        z-index: 9999 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
