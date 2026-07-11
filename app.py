@@ -149,7 +149,7 @@ st.markdown("""
        la interacțiune (hover), fără niciun buton „?" — poziționate fix, în
        același loc, centrate orizontal, mai jos, ca să nu depășească
        niciodată marginea de sus a ferestrei. */
-    .strategy-hover-box, .vehicle-hover-box, .menu-hover-box {
+    .strategy-hover-box, .vehicle-hover-box, .menu-hover-box, .obd-hover-box {
         display: none;
         position: fixed;
         top: 16vh;
@@ -163,7 +163,7 @@ st.markdown("""
         z-index: 9999;
     }
     .strategy-hover-box { background: #EAF2FF; border: 1px solid #CFE3FF; }
-    .vehicle-hover-box, .menu-hover-box { background: #EAF9EF; border: 1px solid #BEE8CC; }
+    .vehicle-hover-box, .menu-hover-box, .obd-hover-box { background: #EAF9EF; border: 1px solid #BEE8CC; }
 
     /* Strategia de management energetic: doar un singur dropdown poate fi
        deschis simultan în toată aplicația, deci verificăm explicit că
@@ -200,6 +200,15 @@ st.markdown("""
     body:has(input[aria-label$="Meniu"][aria-expanded="true"]):has(li[role="option"]:nth-of-type(3):hover) .menu-hover-2 { display: block !important; }
     body:has(input[aria-label$="Meniu"][aria-expanded="true"]):has(li[role="option"]:nth-of-type(4):hover) .menu-hover-3 { display: block !important; }
     body:has(input[aria-label$="Meniu"][aria-expanded="true"]):has(li[role="option"]:nth-of-type(5):hover) .menu-hover-4 { display: block !important; }
+
+    /* Traseu real (OBD-II / Torque): explicația apare la hover pe butonul
+       de upload, aceeași tehnică (marcaj invizibil + frați), validată
+       anterior direct pe aplicația publicată. */
+    div[data-testid="stElementContainer"]:has(div.anchor-obd-upload-q)
+        + div[data-testid="stElementContainer"]:hover
+        ~ div[data-testid="stElementContainer"] .obd-hover-box {
+        display: block !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -729,10 +738,16 @@ PRICE_MAP = {"baseline": 0.84, "serie": 0.98, "paralel": 1.00, "serie_paralel": 
 # --- Import de trasee reale OBD-II (Torque) ca ciclu propriu ---------------
 with st.sidebar:
     with st.expander("Traseu real (OBD-II / Torque)", expanded=False):
-        st.caption("Încarcă un log CSV exportat din aplicația Torque (înregistrat "
-                   "prin adaptor OBD-II). Traseul devine ciclu selectabil, "
-                   "reeșantionat la 1 Hz, cu staționările decupate.")
+        # Explicația apare doar la trecerea cursorului peste butonul de
+        # upload (fără text mereu vizibil) — vezi regula .obd-hover-box.
+        st.markdown('<div class="anchor-obd-upload-q"></div>',
+                    unsafe_allow_html=True)
         obd_file = st.file_uploader("Log Torque (CSV)", type=["csv"], key="obd_up")
+        st.markdown(
+            '<div class="obd-hover-box">Încarcă un log CSV exportat din '
+            'aplicația Torque (înregistrat prin adaptor OBD-II). Traseul '
+            'devine ciclu selectabil, reeșantionat la 1 Hz, cu staționările '
+            'decupate.</div>', unsafe_allow_html=True)
         obd_name = st.text_input("Nume traseu", "Traseul meu", key="obd_name")
         if obd_file is not None:
             try:
