@@ -144,6 +144,28 @@ st.markdown("""
 
     /* Separatoare fine */
     hr { border: none; border-top: 0.5px solid rgba(60,60,67,.18); }
+
+    /* Buton „?" — declanșator pentru panourile de explicații (popover),
+       afișat ca simplu semn de întrebare albastru, circular, fără text și
+       fără chenar de buton. */
+    div[data-testid="stPopover"] > button {
+        background: #EAF2FF !important;
+        border: none !important;
+        border-radius: 50% !important;
+        width: 1.6rem !important;
+        height: 1.6rem !important;
+        min-width: 1.6rem !important;
+        min-height: 1.6rem !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        display: flex !important; align-items: center; justify-content: center;
+    }
+    div[data-testid="stPopover"] > button:hover { background: #D8E8FF !important; }
+    div[data-testid="stPopover"] > button p {
+        color: #007AFF !important; font-weight: 700 !important;
+        font-size: .85rem !important; margin: 0 !important;
+    }
+    div[data-testid="stPopover"] { width: auto !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -214,6 +236,11 @@ _DARK_CSS = """
     }
     .stButton > button p, .stButton > button span,
     .stDownloadButton > button p { color: inherit !important; }
+    div[data-testid="stPopover"] > button {
+        background: #1C1C1E !important;
+    }
+    div[data-testid="stPopover"] > button:hover { background: #2C2C2E !important; }
+    div[data-testid="stPopover"] > button p { color: #0A84FF !important; }
     .stButton > button[kind="primary"],
     [data-testid="stBaseButton-primary"] {
         background: #0A84FF !important; color: #FFFFFF !important;
@@ -455,49 +482,53 @@ with st.sidebar:
                          "Bază de date (marcă → model)",
                          "Introducere manuală",
                          "Fișier încărcat / URL"])
-    strategy = st.selectbox("Strategia de management energetic",
-                            options=["rule_based", "ecms", "dp"],
-                            format_func=lambda s: STRATEGY_LABELS[s])
-    with st.popover("Ce înseamnă fiecare strategie?", use_container_width=True):
-        st.markdown(
-            '<div style="background:#EAF2FF;border:1px solid #CFE3FF;'
-            'border-radius:10px;padding:16px 18px;">'
-            '<p style="margin:0 0 6px 0;"><b>Bazată pe reguli</b></p>'
-            '<p style="margin:0 0 14px 0;">Strategia bazată pe reguli decide, '
-            'în fiecare moment, ce face motorul termic și motorul electric '
-            'urmând un set fix de reguli de bun-simț: dacă mașina stă pe loc, '
-            'motorul termic se oprește; dacă frânează, energia se recuperează '
-            'în baterie; dacă cererea de putere e mică și bateria are '
-            'suficientă energie, mașina merge doar pe motorul electric; dacă '
-            'cererea e mare, cele două motoare lucrează împreună. Este '
-            'strategia cea mai simplă și mai apropiată de ce implementează '
-            'astăzi majoritatea mașinilor hibride de pe piață — ușor de '
-            'înțeles și de verificat, dar nu garantează cel mai mic consum '
-            'posibil.</p>'
-            '<p style="margin:0 0 6px 0;"><b>Minimizarea consumului '
-            'echivalent</b></p>'
-            '<p style="margin:0 0 14px 0;">Această strategie calculează, la '
-            'fiecare secundă, un cost echivalent al fiecărei decizii posibile: '
-            'folosirea energiei electrice din baterie primește un preț '
-            'virtual în combustibil, astfel încât motorul termic și motorul '
-            'electric pot fi comparate direct pe aceeași unitate de măsură. '
-            'Strategia alege mereu combinația cu costul total cel mai mic în '
-            'acel moment. Este mai eficientă decât strategia bazată pe '
-            'reguli, dar și mai complexă de calibrat, pentru că prețul '
-            'virtual al energiei electrice trebuie ajustat astfel încât '
-            'bateria să termine cursa la un nivel de încărcare apropiat de '
-            'cel de la pornire.</p>'
-            '<p style="margin:0 0 6px 0;"><b>Programare dinamică</b></p>'
-            '<p style="margin:0;">Această strategie nu ia decizii pas cu '
-            'pas, ci privește tot traseul dinainte și calculează, prin '
-            'căutare numerică, cea mai bună combinație posibilă de utilizare '
-            'a motorului termic și a motorului electric pe toată durata '
-            'cursei. Rezultatul este cel mai mic consum teoretic posibil '
-            'pentru acel traseu — un etalon față de care se măsoară '
-            'celelalte două strategii — dar nu poate fi folosită într-o '
-            'mașină reală, pentru că are nevoie să cunoască din start toată '
-            'viteza traseului, lucru imposibil în trafic real.</p>'
-            '</div>', unsafe_allow_html=True)
+    _col_strat, _col_strat_q = st.columns([0.86, 0.14])
+    with _col_strat:
+        strategy = st.selectbox("Strategia de management energetic",
+                                options=["rule_based", "ecms", "dp"],
+                                format_func=lambda s: STRATEGY_LABELS[s])
+    with _col_strat_q:
+        st.markdown('<div style="height:1.7rem"></div>', unsafe_allow_html=True)
+        with st.popover("?", use_container_width=False, help="Ce înseamnă fiecare strategie?"):
+            st.markdown(
+                '<div style="background:#EAF2FF;border:1px solid #CFE3FF;'
+                'border-radius:10px;padding:16px 18px;">'
+                '<p style="margin:0 0 6px 0;"><b>Bazată pe reguli</b></p>'
+                '<p style="margin:0 0 14px 0;">Strategia bazată pe reguli decide, '
+                'în fiecare moment, ce face motorul termic și motorul electric '
+                'urmând un set fix de reguli de bun-simț: dacă mașina stă pe loc, '
+                'motorul termic se oprește; dacă frânează, energia se recuperează '
+                'în baterie; dacă cererea de putere e mică și bateria are '
+                'suficientă energie, mașina merge doar pe motorul electric; dacă '
+                'cererea e mare, cele două motoare lucrează împreună. Este '
+                'strategia cea mai simplă și mai apropiată de ce implementează '
+                'astăzi majoritatea mașinilor hibride de pe piață — ușor de '
+                'înțeles și de verificat, dar nu garantează cel mai mic consum '
+                'posibil.</p>'
+                '<p style="margin:0 0 6px 0;"><b>Minimizarea consumului '
+                'echivalent</b></p>'
+                '<p style="margin:0 0 14px 0;">Această strategie calculează, la '
+                'fiecare secundă, un cost echivalent al fiecărei decizii posibile: '
+                'folosirea energiei electrice din baterie primește un preț '
+                'virtual în combustibil, astfel încât motorul termic și motorul '
+                'electric pot fi comparate direct pe aceeași unitate de măsură. '
+                'Strategia alege mereu combinația cu costul total cel mai mic în '
+                'acel moment. Este mai eficientă decât strategia bazată pe '
+                'reguli, dar și mai complexă de calibrat, pentru că prețul '
+                'virtual al energiei electrice trebuie ajustat astfel încât '
+                'bateria să termine cursa la un nivel de încărcare apropiat de '
+                'cel de la pornire.</p>'
+                '<p style="margin:0 0 6px 0;"><b>Programare dinamică</b></p>'
+                '<p style="margin:0;">Această strategie nu ia decizii pas cu '
+                'pas, ci privește tot traseul dinainte și calculează, prin '
+                'căutare numerică, cea mai bună combinație posibilă de utilizare '
+                'a motorului termic și a motorului electric pe toată durata '
+                'cursei. Rezultatul este cel mai mic consum teoretic posibil '
+                'pentru acel traseu — un etalon față de care se măsoară '
+                'celelalte două strategii — dar nu poate fi folosită într-o '
+                'mașină reală, pentru că are nevoie să cunoască din start toată '
+                'viteza traseului, lucru imposibil în trafic real.</p>'
+                '</div>', unsafe_allow_html=True)
     if strategy == "dp":
         st.info(
             "**Programare dinamică** — vezi mai sus explicația metodei. "
@@ -516,7 +547,14 @@ with st.sidebar:
             sub = vdb[vdb["marca"] == sel_marca]
             sel_model = st.selectbox("Model", sorted(sub["model"].unique()))
             sub2 = sub[sub["model"] == sel_model]
-            sel_var = st.selectbox("Variantă", list(sub2["varianta"]))
+            _col_var, _col_var_q = st.columns([0.86, 0.14])
+            with _col_var:
+                sel_var = st.selectbox("Variantă", list(sub2["varianta"]))
+            with _col_var_q:
+                st.markdown('<div style="height:1.7rem"></div>', unsafe_allow_html=True)
+                _pop_vehicle = st.popover(
+                    "?", use_container_width=False,
+                    help="Detalii și audit pentru acest vehicul")
             vrow = sub2[sub2["varianta"] == sel_var].iloc[0]
             p_active = VehicleParams(
                 name=f'{vrow["marca"]} {vrow["model"]} {vrow["varianta"]}',
@@ -592,8 +630,7 @@ with st.sidebar:
                     'reîncărcare din priză; bateria se reîncarcă exclusiv din '
                     'frânarea regenerativă și din motorul termic.')
 
-            with st.popover("Detalii și audit pentru acest vehicul",
-                            use_container_width=True):
+            with _pop_vehicle:
                 st.markdown(
                     '<div style="background:#EAF9EF;border:1px solid #BEE8CC;'
                     'border-radius:10px;padding:16px 18px;">'
@@ -626,12 +663,19 @@ with st.sidebar:
 
     run_btn = st.button("Rulează simularea", type="primary", use_container_width=True)
 
-    st.markdown("## Meniu")
+    _col_menu_title, _col_menu_q = st.columns([0.86, 0.14])
+    with _col_menu_title:
+        st.markdown("## Meniu")
+    with _col_menu_q:
+        st.markdown('<div style="height:.6rem"></div>', unsafe_allow_html=True)
+        _pop_menu = st.popover(
+            "?", use_container_width=False,
+            help="Ce conține fiecare pagină?")
     st.session_state.active_page = st.selectbox(
         "Meniu", PAGES,
         index=PAGES.index(st.session_state.get("active_page", PAGES[0])),
         label_visibility="collapsed")
-    with st.popover("Ce conține fiecare pagină?", use_container_width=True):
+    with _pop_menu:
         _page_desc = [
             ("Simulare", "Rulează cele 4 arhitecturi pe toate ciclurile alese "
              "și arată consumul, emisiile de CO₂, traiectoria bateriei și "
