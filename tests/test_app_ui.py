@@ -42,13 +42,18 @@ class TestSidebarLabels(unittest.TestCase):
 
 class TestPopoversRenderWithoutErrors(unittest.TestCase):
     def test_ems_explanation_popover_present(self):
+        """Cele 3 explicații de strategie sunt randate (ascunse, arătate la
+        hover pe opțiune — fără niciun buton „?")."""
         at = AppTest.from_file(APP_PATH, default_timeout=30)
         at.run()
         self.assertEqual(at.exception, [])
         text = " ".join(m.value for m in at.sidebar.markdown)
-        self.assertIn("Bazată pe reguli", text)
+        self.assertIn("Strategie bazată pe reguli", text)
         self.assertIn("Minimizarea consumului echivalent", text)
         self.assertIn("Programare dinamică", text)
+        self.assertIn("strategy-hover-0", text)
+        self.assertIn("strategy-hover-1", text)
+        self.assertIn("strategy-hover-2", text)
 
     def test_menu_pages_popover_present(self):
         at = AppTest.from_file(APP_PATH, default_timeout=30)
@@ -77,17 +82,21 @@ class TestPopoversRenderWithoutErrors(unittest.TestCase):
                 text = " ".join(m.value for m in at.sidebar.markdown)
                 self.assertIn(expected_snippet, text)
 
-    def test_short_caption_still_present_for_selected_vehicle(self):
-        """Descrierea scurtă (tip/arhitectură/CO2/sursă) rămâne mereu
-        vizibilă — doar auditul EEA și descrierea de tip au fost mutate în
-        popover."""
+    def test_vehicle_summary_in_hover_box(self):
+        """Descrierea scurtă (tip/arhitectură/CO2/sursă) nu mai e mereu
+        vizibilă separat — e inclusă, împreună cu auditul EEA și tipul de
+        electrificare, în box-ul arătat la hover pe „Variantă" (fără niciun
+        buton „?")."""
         at = AppTest.from_file(APP_PATH, default_timeout=30)
         at.run()
         at.sidebar.selectbox[0].set_value("Bază de date (marcă → model)").run()
+        text = " ".join(m.value for m in at.sidebar.markdown)
+        self.assertIn("arhitectura reală", text)
+        self.assertIn("CO₂ WLTP oficial", text)
+        self.assertIn("Sursă:", text)
+        self.assertIn("vehicle-hover-box", text)
         captions = " ".join(c.value for c in at.sidebar.caption)
-        self.assertIn("arhitectura reală", captions)
-        self.assertIn("CO₂ WLTP oficial", captions)
-        self.assertIn("Sursă:", captions)
+        self.assertNotIn("arhitectura reală", captions)
 
 
 if __name__ == "__main__":

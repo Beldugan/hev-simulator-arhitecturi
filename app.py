@@ -169,8 +169,8 @@ st.markdown("""
 
     /* Panoul de explicații (popover) — poziționat fix, mai jos și centrat
        pe orizontală, ca să nu mai depășească marginea de sus a ferestrei
-       atunci când declanșatorul „?" e aproape de vârful paginii (ex. lângă
-       „Strategia de management energetic"). */
+       atunci când declanșatorul „?" e aproape de vârful paginii (folosit
+       acum doar de meniul „Meniu"). */
     div[data-testid="stPopoverBody"] {
         position: fixed !important;
         top: 16vh !important;
@@ -182,6 +182,50 @@ st.markdown("""
         max-height: 70vh !important;
         overflow-y: auto !important;
         z-index: 9999 !important;
+    }
+
+    /* Box-uri afișate DOAR la interacțiune (hover), fără niciun buton „?" —
+       poziționate fix, în același loc cu panoul popover de mai sus. */
+    .strategy-hover-box, .vehicle-hover-box {
+        display: none;
+        position: fixed;
+        top: 16vh;
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: min(560px, 92vw);
+        max-height: 70vh;
+        overflow-y: auto;
+        border-radius: 10px;
+        padding: 16px 18px;
+        z-index: 9999;
+    }
+    .strategy-hover-box { background: #EAF2FF; border: 1px solid #CFE3FF; }
+    .vehicle-hover-box { background: #EAF9EF; border: 1px solid #BEE8CC; }
+
+    /* Strategia de management energetic: doar un singur dropdown poate fi
+       deschis simultan în toată aplicația, deci verificăm explicit că
+       ACEST select (identificat stabil după eticheta lui, nu după un id
+       generat aleator de bibliotecă) e cel deschis (aria-expanded="true")
+       înainte să arătăm explicația opțiunii aflate sub cursor. Astfel nu
+       există risc de coliziune cu alte dropdown-uri din pagină (Marcă,
+       Model, Variantă, Meniu etc.) care ar putea avea aceeași poziție de
+       opțiune. */
+    body:has(input[aria-label$="Strategia de management energetic"][aria-expanded="true"]):has(li[role="option"]:nth-of-type(1):hover) .strategy-hover-0 { display: block !important; }
+    body:has(input[aria-label$="Strategia de management energetic"][aria-expanded="true"]):has(li[role="option"]:nth-of-type(2):hover) .strategy-hover-1 { display: block !important; }
+    body:has(input[aria-label$="Strategia de management energetic"][aria-expanded="true"]):has(li[role="option"]:nth-of-type(3):hover) .strategy-hover-2 { display: block !important; }
+
+    /* Variantă (bază de date vehicule): box-ul apare la hover pe selector.
+       Notă tehnică: CSS nu permite :has() imbricat în :has() (nu e valid
+       să verificăm "un element care conține un descendent hovered" atunci
+       când identificatorul stă pe acel descendent) — de-aia identificăm
+       selectorul „Variantă" printr-un marcaj invizibil pus imediat înainte
+       de el (.anchor-variant-q) și folosim combinatori de frați ("+"/"~"),
+       nu un al doilea :has(). Funcționează identic pentru toate vehiculele
+       din bază, pentru că doar conținutul textului din box se schimbă în
+       funcție de selecție, nu regula CSS. */
+    div.anchor-variant-q + div[data-testid="stElementContainer"]:hover
+        ~ div[data-testid="stElementContainer"] .vehicle-hover-box {
+        display: block !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -499,61 +543,57 @@ with st.sidebar:
                          "Bază de date (marcă → model)",
                          "Introducere manuală",
                          "Fișier încărcat / URL"])
-    _col_strat, _col_strat_q = st.columns([0.86, 0.14])
-    with _col_strat:
-        strategy = st.selectbox("Strategia de management energetic",
-                                options=["rule_based", "ecms", "dp"],
-                                format_func=lambda s: STRATEGY_LABELS[s])
-    with _col_strat_q:
-        st.markdown('<div style="height:1.7rem"></div>', unsafe_allow_html=True)
-        with st.popover("?", use_container_width=False, help="Ce înseamnă fiecare strategie?"):
-            st.markdown(
-                '<div style="background:#EAF2FF;border:1px solid #CFE3FF;'
-                'border-radius:10px;padding:16px 18px;">'
-                '<p style="margin:0 0 6px 0;"><b>Bazată pe reguli</b></p>'
-                '<p style="margin:0 0 14px 0;">Strategia bazată pe reguli decide, '
-                'în fiecare moment, ce face motorul termic și motorul electric '
-                'urmând un set fix de reguli de bun-simț: dacă mașina stă pe loc, '
-                'motorul termic se oprește; dacă frânează, energia se recuperează '
-                'în baterie; dacă cererea de putere e mică și bateria are '
-                'suficientă energie, mașina merge doar pe motorul electric; dacă '
-                'cererea e mare, cele două motoare lucrează împreună. Este '
-                'strategia cea mai simplă și mai apropiată de ce implementează '
-                'astăzi majoritatea mașinilor hibride de pe piață — ușor de '
-                'înțeles și de verificat, dar nu garantează cel mai mic consum '
-                'posibil.</p>'
-                '<p style="margin:0 0 6px 0;"><b>Minimizarea consumului '
-                'echivalent</b></p>'
-                '<p style="margin:0 0 14px 0;">Această strategie calculează, la '
-                'fiecare secundă, un cost echivalent al fiecărei decizii posibile: '
-                'folosirea energiei electrice din baterie primește un preț '
-                'virtual în combustibil, astfel încât motorul termic și motorul '
-                'electric pot fi comparate direct pe aceeași unitate de măsură. '
-                'Strategia alege mereu combinația cu costul total cel mai mic în '
-                'acel moment. Este mai eficientă decât strategia bazată pe '
-                'reguli, dar și mai complexă de calibrat, pentru că prețul '
-                'virtual al energiei electrice trebuie ajustat astfel încât '
-                'bateria să termine cursa la un nivel de încărcare apropiat de '
-                'cel de la pornire.</p>'
-                '<p style="margin:0 0 6px 0;"><b>Programare dinamică</b></p>'
-                '<p style="margin:0;">Această strategie nu ia decizii pas cu '
-                'pas, ci privește tot traseul dinainte și calculează, prin '
-                'căutare numerică, cea mai bună combinație posibilă de utilizare '
-                'a motorului termic și a motorului electric pe toată durata '
-                'cursei. Rezultatul este cel mai mic consum teoretic posibil '
-                'pentru acel traseu — un etalon față de care se măsoară '
-                'celelalte două strategii — dar nu poate fi folosită într-o '
-                'mașină reală, pentru că are nevoie să cunoască din start toată '
-                'viteza traseului, lucru imposibil în trafic real.</p>'
-                '</div>', unsafe_allow_html=True)
-    if strategy == "dp":
-        st.info(
-            "**Programare dinamică** — vezi mai sus explicația metodei. "
-            "Apăsând **Rulează simularea**, aplicația recalculează CU "
-            "ACEASTĂ METODĂ toate arhitecturile, pe toate ciclurile — "
-            "durează aproximativ 10-20 secunde în total, vizibil mai mult "
-            "decât celelalte două strategii.")
-
+    strategy = st.selectbox("Strategia de management energetic",
+                            options=["rule_based", "ecms", "dp"],
+                            format_func=lambda s: STRATEGY_LABELS[s])
+    # Explicația fiecărei strategii apare doar când cursorul stă deasupra
+    # opțiunii respective în dropdown-ul deschis (fără niciun buton „?").
+    # Cele 3 box-uri sunt randate mereu în DOM (ascunse), iar CSS-ul de mai
+    # jos le arată condiționat — vezi regulile .strategy-hover-N din <style>.
+    st.markdown(
+        '<div class="strategy-hover-box strategy-hover-0">'
+        '<p style="margin:0 0 6px 0;"><b>Strategie bazată pe reguli</b></p>'
+        '<p style="margin:0;">Strategia bazată pe reguli decide, '
+        'în fiecare moment, ce face motorul termic și motorul electric '
+        'urmând un set fix de reguli de bun-simț: dacă mașina stă pe loc, '
+        'motorul termic se oprește; dacă frânează, energia se recuperează '
+        'în baterie; dacă cererea de putere e mică și bateria are '
+        'suficientă energie, mașina merge doar pe motorul electric; dacă '
+        'cererea e mare, cele două motoare lucrează împreună. Este '
+        'strategia cea mai simplă și mai apropiată de ce implementează '
+        'astăzi majoritatea mașinilor hibride de pe piață — ușor de '
+        'înțeles și de verificat, dar nu garantează cel mai mic consum '
+        'posibil.</p>'
+        '</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="strategy-hover-box strategy-hover-1">'
+        '<p style="margin:0 0 6px 0;"><b>Minimizarea consumului '
+        'echivalent</b></p>'
+        '<p style="margin:0;">Această strategie calculează, la '
+        'fiecare secundă, un cost echivalent al fiecărei decizii posibile: '
+        'folosirea energiei electrice din baterie primește un preț '
+        'virtual în combustibil, astfel încât motorul termic și motorul '
+        'electric pot fi comparate direct pe aceeași unitate de măsură. '
+        'Strategia alege mereu combinația cu costul total cel mai mic în '
+        'acel moment. Este mai eficientă decât strategia bazată pe '
+        'reguli, dar și mai complexă de calibrat, pentru că prețul '
+        'virtual al energiei electrice trebuie ajustat astfel încât '
+        'bateria să termine cursa la un nivel de încărcare apropiat de '
+        'cel de la pornire.</p>'
+        '</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="strategy-hover-box strategy-hover-2">'
+        '<p style="margin:0 0 6px 0;"><b>Programare dinamică</b></p>'
+        '<p style="margin:0;">Această strategie nu ia decizii pas cu '
+        'pas, ci privește tot traseul dinainte și calculează, prin '
+        'căutare numerică, cea mai bună combinație posibilă de utilizare '
+        'a motorului termic și a motorului electric pe toată durata '
+        'cursei. Rezultatul este cel mai mic consum teoretic posibil '
+        'pentru acel traseu — un etalon față de care se măsoară '
+        'celelalte două strategii — dar nu poate fi folosită într-o '
+        'mașină reală, pentru că are nevoie să cunoască din start toată '
+        'viteza traseului, lucru imposibil în trafic real.</p>'
+        '</div>', unsafe_allow_html=True)
     with st.expander("Parametrii vehiculului",
                      expanded=(mode != "Preset: Bigster (lucrare)")):
         if mode == "Introducere manuală":
@@ -564,14 +604,12 @@ with st.sidebar:
             sub = vdb[vdb["marca"] == sel_marca]
             sel_model = st.selectbox("Model", sorted(sub["model"].unique()))
             sub2 = sub[sub["model"] == sel_model]
-            _col_var, _col_var_q = st.columns([0.86, 0.14])
-            with _col_var:
-                sel_var = st.selectbox("Variantă", list(sub2["varianta"]))
-            with _col_var_q:
-                st.markdown('<div style="height:1.7rem"></div>', unsafe_allow_html=True)
-                _pop_vehicle = st.popover(
-                    "?", use_container_width=False,
-                    help="Detalii și audit pentru acest vehicul")
+            # Marcaj invizibil folosit doar de CSS (regula .vehicle-hover-box
+            # de mai jos), ca să identifice exact acest selector printre
+            # toate din bara laterală, fără ambiguitate.
+            st.markdown('<div class="anchor-variant-q"></div>',
+                        unsafe_allow_html=True)
+            sel_var = st.selectbox("Variantă", list(sub2["varianta"]))
             vrow = sub2[sub2["varianta"] == sel_var].iloc[0]
             p_active = VehicleParams(
                 name=f'{vrow["marca"]} {vrow["model"]} {vrow["varianta"]}',
@@ -583,14 +621,15 @@ with st.sidebar:
                 bat_energy_kWh=float(vrow["bat_energy_kWh"]),
                 price_EUR=float(vrow["price_EUR"]),
             )
-            st.caption(
-                f'**{vrow["tip"]}** · arhitectura reală: '
-                f'**{ARCH_LABELS.get(vrow["arhitectura"], vrow["arhitectura"])}** · '
-                f'CO₂ WLTP oficial: **{vrow["co2_wltp_g_km"]} g/km** '
+            _vehicle_line1 = (
+                f'<b>{vrow["tip"]}</b> · arhitectura reală: '
+                f'<b>{ARCH_LABELS.get(vrow["arhitectura"], vrow["arhitectura"])}</b> · '
+                f'CO₂ WLTP oficial: <b>{vrow["co2_wltp_g_km"]} g/km</b> '
                 f'({vrow["consum_wltp_L_100km"]} L/100 km'
                 + (", ponderat" if vrow["tip"] == "PHEV" else "") + ")")
-            st.caption(f'Sursă: {vrow["sursa"]} · câmpuri estimate: '
-                       f'{str(vrow["estimari"]).replace(";", ", ")}')
+            _vehicle_line2 = (
+                f'Sursă: {vrow["sursa"]} · câmpuri estimate: '
+                f'{str(vrow["estimari"]).replace(";", ", ")}')
             eea_rep = load_eea_report()
             audit_html = None
             if eea_rep is not None:
@@ -647,13 +686,19 @@ with st.sidebar:
                     'reîncărcare din priză; bateria se reîncarcă exclusiv din '
                     'frânarea regenerativă și din motorul termic.')
 
-            with _pop_vehicle:
-                st.markdown(
-                    '<div style="background:#EAF9EF;border:1px solid #BEE8CC;'
-                    'border-radius:10px;padding:16px 18px;">'
-                    f'<p style="margin:0 0 14px 0;">{audit_html}</p>'
-                    f'<p style="margin:0;">{tip_html}</p>'
-                    '</div>', unsafe_allow_html=True)
+            # Rezumatul, auditul EEA și descrierea tipului de electrificare
+            # apar doar când cursorul stă deasupra selectorului „Variantă"
+            # (fără niciun buton „?") — vezi regula .vehicle-hover-box din
+            # <style>. Generalizat automat pentru orice vehicul din bază,
+            # pentru că tot conținutul de mai jos e recalculat la fiecare
+            # selecție.
+            st.markdown(
+                '<div class="vehicle-hover-box">'
+                f'<p style="margin:0 0 10px 0;">{_vehicle_line1}</p>'
+                f'<p style="margin:0 0 14px 0;color:#555;">{_vehicle_line2}</p>'
+                f'<p style="margin:0 0 14px 0;">{audit_html}</p>'
+                f'<p style="margin:0;">{tip_html}</p>'
+                '</div>', unsafe_allow_html=True)
         elif mode == "Fișier încărcat / URL":
             up = st.file_uploader("Fișier parametri (JSON sau CSV)",
                                   type=["json", "csv"])
