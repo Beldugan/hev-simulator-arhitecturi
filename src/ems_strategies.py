@@ -473,9 +473,9 @@ ARCH_LABELS: dict[str, str] = {
 }
 
 STRATEGY_LABELS: dict[str, str] = {
-    "rule_based": "Bazată pe reguli (Rule-Based)",
-    "ecms": "ECMS (minimizarea consumului echivalent)",
-    "dp": "Programare dinamică (benchmark optim)",
+    "rule_based": "Bazată pe reguli",
+    "ecms": "Minimizarea consumului echivalent",
+    "dp": "Programare dinamică (etalon optim)",
 }
 
 ARCHITECTURES: list[str] = ["baseline", "serie", "paralel", "serie_paralel"]

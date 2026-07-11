@@ -455,19 +455,56 @@ with st.sidebar:
                          "Bază de date (marcă → model)",
                          "Introducere manuală",
                          "Fișier încărcat / URL"])
-    strategy = st.selectbox("Strategie EMS",
+    strategy = st.selectbox("Strategia de management energetic",
                             options=["rule_based", "ecms", "dp"],
                             format_func=lambda s: STRATEGY_LABELS[s])
+    with st.popover("Ce înseamnă fiecare strategie?", use_container_width=True):
+        st.markdown(
+            '<div style="background:#EAF2FF;border:1px solid #CFE3FF;'
+            'border-radius:10px;padding:16px 18px;">'
+            '<p style="margin:0 0 6px 0;"><b>Bazată pe reguli</b></p>'
+            '<p style="margin:0 0 14px 0;">Strategia bazată pe reguli decide, '
+            'în fiecare moment, ce face motorul termic și motorul electric '
+            'urmând un set fix de reguli de bun-simț: dacă mașina stă pe loc, '
+            'motorul termic se oprește; dacă frânează, energia se recuperează '
+            'în baterie; dacă cererea de putere e mică și bateria are '
+            'suficientă energie, mașina merge doar pe motorul electric; dacă '
+            'cererea e mare, cele două motoare lucrează împreună. Este '
+            'strategia cea mai simplă și mai apropiată de ce implementează '
+            'astăzi majoritatea mașinilor hibride de pe piață — ușor de '
+            'înțeles și de verificat, dar nu garantează cel mai mic consum '
+            'posibil.</p>'
+            '<p style="margin:0 0 6px 0;"><b>Minimizarea consumului '
+            'echivalent</b></p>'
+            '<p style="margin:0 0 14px 0;">Această strategie calculează, la '
+            'fiecare secundă, un cost echivalent al fiecărei decizii posibile: '
+            'folosirea energiei electrice din baterie primește un preț '
+            'virtual în combustibil, astfel încât motorul termic și motorul '
+            'electric pot fi comparate direct pe aceeași unitate de măsură. '
+            'Strategia alege mereu combinația cu costul total cel mai mic în '
+            'acel moment. Este mai eficientă decât strategia bazată pe '
+            'reguli, dar și mai complexă de calibrat, pentru că prețul '
+            'virtual al energiei electrice trebuie ajustat astfel încât '
+            'bateria să termine cursa la un nivel de încărcare apropiat de '
+            'cel de la pornire.</p>'
+            '<p style="margin:0 0 6px 0;"><b>Programare dinamică</b></p>'
+            '<p style="margin:0;">Această strategie nu ia decizii pas cu '
+            'pas, ci privește tot traseul dinainte și calculează, prin '
+            'căutare numerică, cea mai bună combinație posibilă de utilizare '
+            'a motorului termic și a motorului electric pe toată durata '
+            'cursei. Rezultatul este cel mai mic consum teoretic posibil '
+            'pentru acel traseu — un etalon față de care se măsoară '
+            'celelalte două strategii — dar nu poate fi folosită într-o '
+            'mașină reală, pentru că are nevoie să cunoască din start toată '
+            'viteza traseului, lucru imposibil în trafic real.</p>'
+            '</div>', unsafe_allow_html=True)
     if strategy == "dp":
         st.info(
-            "**Programare dinamică (DP)** — o metodă de referință care caută "
-            "numeric consumul minim teoretic posibil (nu poate rula în timp "
-            "real, pe un vehicul adevărat; e folosită doar ca etalon de "
-            "comparație pentru celelalte strategii). Apăsând **Rulează "
-            "simularea**, aplicația recalculează CU ACEASTĂ METODĂ toate "
-            "arhitecturile, pe toate ciclurile — durează aproximativ "
-            "10-20 secunde în total, vizibil mai mult decât Rule-Based sau "
-            "ECMS.")
+            "**Programare dinamică** — vezi mai sus explicația metodei. "
+            "Apăsând **Rulează simularea**, aplicația recalculează CU "
+            "ACEASTĂ METODĂ toate arhitecturile, pe toate ciclurile — "
+            "durează aproximativ 10-20 secunde în total, vizibil mai mult "
+            "decât celelalte două strategii.")
 
     with st.expander("Parametrii vehiculului",
                      expanded=(mode != "Preset: Bigster (lucrare)")):
@@ -500,6 +537,7 @@ with st.sidebar:
             st.caption(f'Sursă: {vrow["sursa"]} · câmpuri estimate: '
                        f'{str(vrow["estimari"]).replace(";", ", ")}')
             eea_rep = load_eea_report()
+            audit_html = None
             if eea_rep is not None:
                 hit = eea_rep[(eea_rep["marca"] == vrow["marca"]) &
                               (eea_rep["model"] == vrow["model"]) &
@@ -507,31 +545,61 @@ with st.sidebar:
                 if len(hit):
                     h = hit.iloc[0]
                     if str(h["status"]).startswith("OK"):
-                        st.success(f'Audit EEA: **OK** · abateri față de mediana '
-                                   f'EEA — masă {h.get("abatere_masa_pct", "–")}%, '
-                                   f'CO₂ {h.get("abatere_co2_pct", "–")}% '
-                                   f'({int(h["eea_inregistrari"])} înregistrări)')
+                        audit_html = (
+                            '<span style="color:#1FA971;font-weight:700;">Audit '
+                            f'EEA: OK</span> · abateri față de mediana EEA — masă '
+                            f'{h.get("abatere_masa_pct", "–")}%, CO₂ '
+                            f'{h.get("abatere_co2_pct", "–")}% '
+                            f'({int(h["eea_inregistrari"])} înregistrări)')
                     elif str(h["status"]).startswith("NEGĂSIT"):
-                        st.warning("Audit EEA: **negăsit** în setul EEA "
-                                   "(denumire comercială diferită sau model non-UE).")
+                        audit_html = (
+                            '<span style="color:#8E8E93;font-weight:700;">Audit '
+                            'EEA: negăsit</span> în setul EEA (denumire '
+                            'comercială diferită sau model non-UE).')
                     else:
-                        st.warning(f'Audit EEA: **de verificat** · masă '
-                                   f'{h.get("abatere_masa_pct", "–")}%, CO₂ '
-                                   f'{h.get("abatere_co2_pct", "–")}% față de '
-                                   f'mediana EEA.')
+                        audit_html = (
+                            '<span style="color:#B8860B;font-weight:700;">Audit '
+                            f'EEA: de verificat</span> · masă '
+                            f'{h.get("abatere_masa_pct", "–")}%, CO₂ '
+                            f'{h.get("abatere_co2_pct", "–")}% față de mediana '
+                            'EEA.')
+                else:
+                    audit_html = ('<span style="color:#8E8E93;">Acest vehicul nu '
+                                  'apare încă în auditul EEA local.</span>')
+            else:
+                audit_html = ('<span style="color:#8E8E93;">Raportul de audit '
+                              'EEA nu a fost generat local încă.</span>')
+
             if vrow["tip"] == "PHEV":
-                st.caption("**Rezultatele simulate NU corespund modului normal "
-                           "de utilizare a unui PHEV** (care pornește de regulă "
-                           "cu bateria plină, din priză). Detaliu: simularea "
-                           "rulează în regim **charge-sustaining** — bateria "
-                           "începe și termină ciclul la același nivel de "
-                           "încărcare (motorul termic o menține constantă, fără "
-                           "reîncărcare din priză în timpul rulării).")
+                tip_html = (
+                    '<b>Rezultatele simulate NU corespund modului normal de '
+                    'utilizare a unui PHEV</b> (care pornește de regulă cu '
+                    'bateria plină, din priză). Detaliu: simularea rulează în '
+                    'regim de menținere a încărcării — bateria începe și '
+                    'termină ciclul la același nivel de încărcare (motorul '
+                    'termic o menține constantă, fără reîncărcare din priză în '
+                    'timpul rulării).')
             elif vrow["tip"] == "MHEV":
-                st.caption("**Electrificare ușoară — folosiți acest vehicul mai "
-                           "ales ca referință de tip baseline, nu ca hibrid "
-                           "complet.** Detaliu: mașina electrică e mică și "
-                           "limitează rularea pur electrică.")
+                tip_html = (
+                    '<b>Electrificare ușoară — folosiți acest vehicul mai ales '
+                    'ca referință de tip baseline, nu ca hibrid complet.</b> '
+                    'Detaliu: mașina electrică e mică și limitează rularea pur '
+                    'electrică.')
+            else:  # HEV
+                tip_html = (
+                    '<b>Hibrid complet (Full HEV)</b> — motorul electric poate '
+                    'propulsa singur mașina pe distanțe scurte, fără '
+                    'reîncărcare din priză; bateria se reîncarcă exclusiv din '
+                    'frânarea regenerativă și din motorul termic.')
+
+            with st.popover("Detalii și audit pentru acest vehicul",
+                            use_container_width=True):
+                st.markdown(
+                    '<div style="background:#EAF9EF;border:1px solid #BEE8CC;'
+                    'border-radius:10px;padding:16px 18px;">'
+                    f'<p style="margin:0 0 14px 0;">{audit_html}</p>'
+                    f'<p style="margin:0;">{tip_html}</p>'
+                    '</div>', unsafe_allow_html=True)
         elif mode == "Fișier încărcat / URL":
             up = st.file_uploader("Fișier parametri (JSON sau CSV)",
                                   type=["json", "csv"])
@@ -563,6 +631,32 @@ with st.sidebar:
         "Meniu", PAGES,
         index=PAGES.index(st.session_state.get("active_page", PAGES[0])),
         label_visibility="collapsed")
+    with st.popover("Ce conține fiecare pagină?", use_container_width=True):
+        _page_desc = [
+            ("Simulare", "Rulează cele 4 arhitecturi pe toate ciclurile alese "
+             "și arată consumul, emisiile de CO₂, traiectoria bateriei și "
+             "derularea animată a fiecărei curse."),
+            ("Sensibilitate", "Arată cât de mult se schimbă rezultatele dacă "
+             "variezi masa, prețul combustibilului sau alți parametri cu "
+             "±20% — util pentru a vedea ce contează cu adevărat."),
+            ("Comparație A/B", "Compară direct două seturi de parametri de "
+             "vehicul (de exemplu, două variante de echipare) pe aceeași "
+             "arhitectură și același ciclu."),
+            ("Validare", "Verifică dacă rezultatele simulării respectă "
+             "limitele fizice reale (bateria, puterile motoarelor) și le "
+             "compară cu valorile oficiale ale producătorilor."),
+            ("Export PDF", "Generează un raport PDF complet, cu toate "
+             "tabelele, graficele și interpretările, gata de atașat la "
+             "lucrare sau de printat."),
+        ]
+        _rows_html = "".join(
+            f'<p style="margin:0 0 12px 0;"><b>{name}</b><br>{desc}</p>'
+            for name, desc in _page_desc[:-1]
+        ) + f'<p style="margin:0;"><b>{_page_desc[-1][0]}</b><br>{_page_desc[-1][1]}</p>'
+        st.markdown(
+            '<div style="background:#EAF9EF;border:1px solid #BEE8CC;'
+            f'border-radius:10px;padding:16px 18px;">{_rows_html}</div>',
+            unsafe_allow_html=True)
 
 cycles = load_cycles()
 PRICE_MAP = {"baseline": 0.84, "serie": 0.98, "paralel": 1.00, "serie_paralel": 1.04}

@@ -87,7 +87,8 @@ hev_app_v2/
 │   ├── test_tco_model.py       # TCO, break-even, referințe WLTP
 │   ├── test_obd_import.py      # import loguri Torque (OBD-II)
 │   ├── test_visualizations.py  # statistici de ciclu, CYCLE_INFO, grafice
-│   └── test_pdf_export.py      # generare raport PDF (test de fum, cap-coadă)
+│   ├── test_pdf_export.py      # generare raport PDF (test de fum, cap-coadă)
+│   └── test_app_ui.py          # interfața (AppTest) — popover-uri, etichete
 └── docs/
     ├── Ghid_utilizare.pdf      # ghid utilizator (docx + pdf, capturi reale)
     └── screenshots/
@@ -170,7 +171,7 @@ oficială. Editarea fișierului JSON nu necesită modificarea codului.
 
 ```bash
 pip install pytest
-pytest tests/            # rulează toate suitele (54 de teste)
+pytest tests/            # rulează toate suitele (60 de teste)
 # sau, fișier cu fișier, fără pytest:
 cd tests && python3 test_engine.py
 ```
