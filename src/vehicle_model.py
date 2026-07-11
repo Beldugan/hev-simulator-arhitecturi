@@ -15,7 +15,11 @@ Modulul expune:
     - VehicleParams : structura parametrilor fizici ai vehiculului
     - SimulationResult : structura rezultatului unei simulări
     - road_load(), fuel_rate() : funcții fizice de bază
-    - simulate() : simularea unui vehicul pe un ciclu
+
+Notă: funcția de simulare propriu-zisă, simulate(), NU este definită aici, ci
+în ems_strategies.py — acolo este implementată logica de decizie a fiecărei
+strategii EMS, care apelează la rândul ei road_load()/fuel_rate() din acest
+modul.
 
 Licență: MIT
 """

@@ -130,14 +130,26 @@ def compute_breakeven(price_baseline: float, price_hev: float,
 
 def load_wltp_references(path: Optional[str] = None) -> dict:
     """Încarcă valorile WLTP oficiale din fișierul JSON citat."""
+    candidates: list[str] = []
     if path is None:
         here = os.path.dirname(os.path.abspath(__file__))
-        for cand in [os.path.join(here, "..", "data", "wltp_references.json"),
+        candidates = [os.path.join(here, "..", "data", "wltp_references.json"),
                      os.path.join(here, "data", "wltp_references.json"),
-                     "wltp_references.json"]:
+                     "wltp_references.json"]
+        for cand in candidates:
             if os.path.exists(cand):
                 path = cand
                 break
+        else:
+            raise FileNotFoundError(
+                "Fișierul de referință 'wltp_references.json' (valorile "
+                "WLTP oficiale folosite pentru comparație) nu a fost găsit. "
+                "Căile verificate au fost:\n  - " + "\n  - ".join(candidates) +
+                "\nVerificați instalarea aplicației — fișierul trebuie să "
+                "existe în folderul 'data/'.")
+    elif not os.path.exists(path):
+        raise FileNotFoundError(
+            f"Fișierul de referință indicat nu există: {path}")
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 

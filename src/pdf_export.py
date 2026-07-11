@@ -14,8 +14,11 @@ Licență: MIT
 """
 from __future__ import annotations
 import io
+import logging
 import os
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 import numpy as np
 import matplotlib
@@ -114,8 +117,11 @@ def _register_fonts() -> None:
             "DejaVu", normal="DejaVu", bold="DejaVu-Bold",
             italic="DejaVu-Italic", boldItalic="DejaVu-Bold")
         _FONT_MAIN, _FONT_BOLD, _FONT_ITALIC = "DejaVu", "DejaVu-Bold", "DejaVu-Italic"
-    except Exception:
-        pass
+    except Exception as e:
+        # Nefatal: PDF-ul se generează în continuare cu fontul implicit
+        # Helvetica (fără diacritice românești corecte în anumite vizualizatoare).
+        logger.warning("Nu s-au putut înregistra fonturile DejaVu (%s); "
+                       "raportul PDF va folosi fontul implicit.", e)
 
 
 # ======================================================================
@@ -162,8 +168,9 @@ def _watermark_first(cv, doc) -> None:
             cv.drawImage(logo, W - 1.8 * cm - size, H - 1.7 * cm - size,
                          width=size, height=size, mask="auto",
                          preserveAspectRatio=True)
-        except Exception:
-            pass
+        except Exception as e:
+            # Nefatal: raportul se generează în continuare fără logo pe prima pagină.
+            logger.warning("Nu s-a putut desena logo-ul pe prima pagină (%s).", e)
 
 
 # ======================================================================
@@ -291,24 +298,48 @@ def _haversine_km(la1, lo1, la2, lo2):
     return 2 * R * np.arcsin(np.sqrt(a))
 
 
+# Limita de utilizare Nominatim/OSM impune maximum 1 cerere/secundă per
+# aplicație (https://operations.osmfoundation.org/policies/nominatim/).
+# _last_geocode_ts ține evidența ultimei cereri (variabilă la nivel de modul,
+# partajată de toate apelurile din procesul curent); _geocode_cache evită
+# cereri repetate pentru aceeași coordonată (rotunjită la ~11 m).
+import time as _time
+_last_geocode_ts = [0.0]
+_geocode_min_interval_s = 1.1
+_geocode_cache: dict[tuple[float, float], str] = {}
+
+
 def _reverse_geocode(lat: float, lon: float) -> str:
     """Adresă aproximativă pentru o coordonată (Nominatim/OSM). Necesită
-    internet; la eșec întoarce coordonatele formatate."""
+    internet; la eșec întoarce coordonatele formatate.
+
+    Respectă limita de 1 cerere/secundă a Nominatim (throttling) și
+    memorează rezultatele deja cerute (cache) pentru a reduce numărul de
+    cereri pe trasee lungi."""
+    key = (round(lat, 4), round(lon, 4))
+    if key in _geocode_cache:
+        return _geocode_cache[key]
     try:
         import requests
+        elapsed = _time.monotonic() - _last_geocode_ts[0]
+        if elapsed < _geocode_min_interval_s:
+            _time.sleep(_geocode_min_interval_s - elapsed)
         r = requests.get(
             "https://nominatim.openstreetmap.org/reverse",
             params={"lat": lat, "lon": lon, "format": "json", "zoom": 18,
                     "addressdetails": 1},
             headers={"User-Agent": "hev-simulator/1.0 (dissertation)"},
             timeout=6)
+        _last_geocode_ts[0] = _time.monotonic()
         a = r.json().get("address", {})
         road = a.get("road") or a.get("pedestrian") or a.get("neighbourhood", "")
         city = a.get("city") or a.get("town") or a.get("village") or ""
         parts = [x for x in (road, city) if x]
-        return ", ".join(parts) if parts else f"{lat:.5f}, {lon:.5f}"
+        result = ", ".join(parts) if parts else f"{lat:.5f}, {lon:.5f}"
     except Exception:
-        return f"{lat:.5f}, {lon:.5f}"
+        result = f"{lat:.5f}, {lon:.5f}"
+    _geocode_cache[key] = result
+    return result
 
 
 def _street_breakdown(track: dict, dist_total_km: float | None = None,

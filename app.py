@@ -8,12 +8,15 @@ Rulare:  streamlit run app.py
 A.M. Beldugan, FIMIM, Universitatea Ovidius din Constanța, 2026. Licență MIT.
 """
 import io
+import ipaddress
 import json
 import os
+import socket
 import sys
 import tempfile
 from datetime import datetime
 from dataclasses import fields as dc_fields
+from urllib.parse import urlparse
 
 import numpy as np
 import pandas as pd
@@ -369,6 +372,32 @@ def _parse_csv_params(text: str) -> dict:
     return d
 
 
+def _is_safe_external_url(url: str) -> tuple[bool, str]:
+    """Verificare de securitate de bază înainte de a accesa un URL introdus de
+    utilizator (protecție SSRF): permite doar http(s) către un host public,
+    blochează adresele private/loopback/link-local (ex. localhost, rețeaua
+    internă, adresele de metadate cloud 169.254.169.254)."""
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return False, "URL invalid."
+    if parsed.scheme not in ("http", "https"):
+        return False, "Sunt acceptate doar adrese http:// sau https://."
+    if not parsed.hostname:
+        return False, "URL-ul nu conține un nume de host valid."
+    try:
+        resolved_ip = socket.gethostbyname(parsed.hostname)
+        ip_obj = ipaddress.ip_address(resolved_ip)
+    except (socket.gaierror, ValueError):
+        return False, "Numele de host nu poate fi rezolvat."
+    if (ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local
+            or ip_obj.is_reserved or ip_obj.is_multicast):
+        return False, ("Din motive de securitate, aplicația nu accesează adrese "
+                       "din rețele private/interne — folosiți un link public "
+                       "(ex. raw GitHub, fișier găzduit public).")
+    return True, ""
+
+
 def load_external_params(uploaded, url: str) -> tuple[VehicleParams, list[str]]:
     """Parametri din fișier încărcat (JSON/CSV) sau dintr-un URL direct."""
     raw, kind, msgs = None, None, []
@@ -376,6 +405,9 @@ def load_external_params(uploaded, url: str) -> tuple[VehicleParams, list[str]]:
         raw = uploaded.getvalue().decode("utf-8", errors="replace")
         kind = "json" if uploaded.name.lower().endswith(".json") else "csv"
     elif url.strip():
+        ok, why = _is_safe_external_url(url.strip())
+        if not ok:
+            return VehicleParams(), [f"URL respins: {why}"]
         try:
             resp = requests.get(url.strip(), timeout=10)
             resp.raise_for_status()
@@ -391,7 +423,10 @@ def load_external_params(uploaded, url: str) -> tuple[VehicleParams, list[str]]:
                     "interpretate automat. Folosiți un link DIRECT către un fișier "
                     "JSON sau CSV (ex. raw GitHub, fișier găzduit)."]
         except requests.RequestException as e:
-            return VehicleParams(), [f"URL inaccesibil: {e}"]
+            return VehicleParams(), [
+                "Nu s-a putut descărca fișierul de la URL-ul indicat "
+                "(conexiune eșuată, adresă greșită sau server indisponibil). "
+                f"Detaliu tehnic: {type(e).__name__}: {e}"]
     if raw is None:
         return VehicleParams(), ["Niciun fișier/URL — se folosesc valorile din lucrare."]
     try:
@@ -401,7 +436,10 @@ def load_external_params(uploaded, url: str) -> tuple[VehicleParams, list[str]]:
         p, m = _params_from_mapping(data)
         return p, msgs + m
     except Exception as e:
-        return VehicleParams(), [f"Fișier neinterpretabil: {e}"]
+        return VehicleParams(), [
+            "Fișierul nu a putut fi interpretat — verificați că este un JSON "
+            "valid ({cheie: valoare}) sau un CSV cu două coloane (parametru, "
+            f"valoare). Detaliu tehnic: {type(e).__name__}: {e}"]
 
 
 # ======================================================================
@@ -421,7 +459,15 @@ with st.sidebar:
                             options=["rule_based", "ecms", "dp"],
                             format_func=lambda s: STRATEGY_LABELS[s])
     if strategy == "dp":
-        st.info("Benchmark PMP-shooting: ~10-20 s per rulare completă.")
+        st.info(
+            "**Programare dinamică (DP)** — o metodă de referință care caută "
+            "numeric consumul minim teoretic posibil (nu poate rula în timp "
+            "real, pe un vehicul adevărat; e folosită doar ca etalon de "
+            "comparație pentru celelalte strategii). Apăsând **Rulează "
+            "simularea**, aplicația recalculează CU ACEASTĂ METODĂ toate "
+            "arhitecturile, pe toate ciclurile — durează aproximativ "
+            "10-20 secunde în total, vizibil mai mult decât Rule-Based sau "
+            "ECMS.")
 
     with st.expander("Parametrii vehiculului",
                      expanded=(mode != "Preset: Bigster (lucrare)")):
@@ -474,13 +520,18 @@ with st.sidebar:
                                    f'{h.get("abatere_co2_pct", "–")}% față de '
                                    f'mediana EEA.')
             if vrow["tip"] == "PHEV":
-                st.caption("PHEV: simularea rulează în regim charge-sustaining "
-                           "(baterie descărcată la nivelul țintă), nu în modul "
-                           "electric din priză.")
+                st.caption("**Rezultatele simulate NU corespund modului normal "
+                           "de utilizare a unui PHEV** (care pornește de regulă "
+                           "cu bateria plină, din priză). Detaliu: simularea "
+                           "rulează în regim **charge-sustaining** — bateria "
+                           "începe și termină ciclul la același nivel de "
+                           "încărcare (motorul termic o menține constantă, fără "
+                           "reîncărcare din priză în timpul rulării).")
             elif vrow["tip"] == "MHEV":
-                st.caption("MHEV: electrificare ușoară — mașina electrică mică "
-                           "limitează rularea pur electrică; util ca referință "
-                           "de tip baseline.")
+                st.caption("**Electrificare ușoară — folosiți acest vehicul mai "
+                           "ales ca referință de tip baseline, nu ca hibrid "
+                           "complet.** Detaliu: mașina electrică e mică și "
+                           "limitează rularea pur electrică.")
         elif mode == "Fișier încărcat / URL":
             up = st.file_uploader("Fișier parametri (JSON sau CSV)",
                                   type=["json", "csv"])
@@ -542,8 +593,17 @@ with st.sidebar:
                                f"util pentru validarea configurației baseline.")
                 for w in res["warnings"]:
                     st.caption(f"• {w}")
+            except ValueError as e:
+                # parse_torque_log() ridică deja mesaje explicative în română
+                # pentru cazurile așteptate (coloane lipsă, prea puține puncte
+                # etc.) — le afișăm direct, fără alt strat de traducere.
+                st.warning(str(e))
             except Exception as e:
-                st.warning(f"Log neinterpretabil: {e}")
+                st.warning(
+                    "Log-ul nu a putut fi interpretat — verificați că este un "
+                    "export CSV valid din aplicația Torque (necesită antet cu "
+                    "coloane de viteză și timp). "
+                    f"Detaliu tehnic: {type(e).__name__}: {e}")
 
 
 # ======================================================================
@@ -627,7 +687,20 @@ def page_simulare():
 
         # --- Ce înseamnă ciclul selectat ---
         st.markdown("##### Despre ciclul selectat")
-        st.markdown(CYCLE_INFO.get(sel_cyc, ""))
+        if sel_cyc in CYCLE_INFO:
+            st.markdown(CYCLE_INFO[sel_cyc])
+        elif sel_cyc.startswith("Real:"):
+            _cs_here = cycle_stats(cycles[sel_cyc])
+            st.markdown(
+                f"**Traseu propriu importat** — încărcat de utilizator dintr-un "
+                f"log OBD-II (Torque), reeșantionat la 1 Hz. Nu este un ciclu "
+                f"standardizat de omologare, ci o înregistrare reală: "
+                f"~{_cs_here['distance_km']:.1f} km, {_cs_here['n_stops']} opriri "
+                f"complete, viteză maximă {_cs_here['v_max']:.0f} km/h. Util "
+                f"pentru a compara arhitecturile pe *propriul* stil de condus, "
+                f"nu pentru omologare.")
+        else:
+            st.caption("Nu există o descriere pentru acest ciclu.")
 
         # Harta traseului real, dacă ciclul selectat are traseu GPS
         _tracks = {**load_bundled_tracks(),
@@ -787,9 +860,11 @@ def page_simulare():
 # ----------------------------------------------------------------------
 def page_sensibilitate():
     st.markdown("#### Analiza de sensibilitate completă")
-    st.caption("Fiecare parametru este variat cu ±20%; se măsoară efectul asupra "
-               "consumului și asupra TCO. Diagrama tornado ordonează parametrii "
-               "după influență.")
+    st.caption("Fiecare parametru este variat cu **±20%** (interval convențional "
+               "de analiză, fixat în aplicație — nu este configurabil din "
+               "interfață); se măsoară efectul asupra consumului și asupra TCO. "
+               "Diagrama tornado ordonează parametrii după influență (cei cu bare "
+               "mai lungi contează mai mult pentru rezultatul final).")
     sens_arch = st.selectbox("Arhitectura analizată",
                              [a for a in ARCHITECTURES if a != "baseline"],
                              format_func=lambda a: ARCH_LABELS[a], key="sens_arch")
@@ -916,106 +991,122 @@ def page_export():
     st.caption("Tabelele de sinteză (consum, CO₂, cotă EV, TCO) includ oricum "
                "toate ciclurile simulate; selecția de mai sus controlează doar "
                "capitolele cu grafice per ciclu.")
+    if any(str(c).startswith("Real") for c in sel_cycles):
+        st.caption("Notă: cicluri reale cu traseu GPS includ identificarea "
+                   "străzilor parcurse printr-un serviciu online (OpenStreetMap) "
+                   "— pentru trasee lungi, acest pas poate dura până la un minut "
+                   "și necesită conexiune la internet.")
     if st.button("Generează raportul PDF", type="primary", disabled=not sel_cycles):
-        with st.spinner("Se generează raportul…"):
-            def _reduc(a, c):
-                base = results["baseline"][c].consumption_L_100km
-                if not base or base <= 0:
-                    return 0.0
-                return round((base - results[a][c].consumption_L_100km) / base * 100, 1)
-            rows_pdf = [{"Arhitectură": ARCH_LABELS[a], "Ciclu": c,
-                         "Consum [L/100km]": results[a][c].consumption_L_100km,
-                         "CO₂ [g/km]": results[a][c].co2_g_km,
-                         "Cotă EV [%]": results[a][c].ev_share_pct,
-                         "Reducere [%]": _reduc(a, c)}
-                        for a in ARCHITECTURES for c in cycles]
-            tco_pdf = []
-            for a in ARCHITECTURES:
-                avg = np.mean([results[a][c].consumption_L_100km for c in cycles])
-                t = compute_tco(p_used.price_EUR * PRICE_MAP[a], avg,
-                                p_used.residual_frac, econ_used, is_hev=(a != "baseline"))
-                tco_pdf.append({"Arhitectură": ARCH_LABELS[a], "Achiziție": t["price"],
-                                "Energie": t["cost_energy"], "Mentenanță": t["maintenance"],
-                                "Asigurare": t["insurance"], "Rezidual": t["residual"],
-                                "TCO total": t["tco_total"]})
-            be_pdf = compute_breakeven(p_used.price_EUR * PRICE_MAP["baseline"],
-                                       p_used.price_EUR,
-                                       np.mean([results["baseline"][c].consumption_L_100km for c in cycles]),
-                                       np.mean([results["paralel"][c].consumption_L_100km for c in cycles]),
-                                       econ_used)
-            # Ciclul principal pentru secțiunile care rămân pe un singur ciclu
-            # (comparația WLTP, sensibilitatea): WLTC dacă e selectat, altfel primul.
-            main_cyc = "WLTC" if "WLTC" in sel_cycles else sel_cycles[0]
-            checks_pdf = physical_validation(results["paralel"][main_cyc], p_used)
-            # Comparația WLTP se face exclusiv pe ciclul de omologare WLTC.
-            # Pentru un vehicul din baza de date: cu propria valoare oficială
-            # (pe arhitectura lui reală); PHEV se omite (WLTP ponderat nu e
-            # comparabil cu simularea charge-sustaining). Altfel: sursele
-            # de referință ale lucrării (Bigster + context).
-            db_u = st.session_state.get("db_row_used")
-            wltp_cyc = "WLTC" if "WLTC" in cycles else main_cyc
-            if db_u and db_u["tip"] != "PHEV":
-                arch_r = db_u["arhitectura"]
-                sim_w = results[arch_r][wltp_cyc].consumption_L_100km
-                off = float(db_u["consum_wltp_L_100km"])
-                cmp_pdf = {"n_sources": 1,
-                           "avg_deviation_pct": round((sim_w - off) / off * 100, 1),
-                           "comparisons": [{
-                               "name": f'{db_u["marca"]} {db_u["model"]} '
-                                       f'{db_u["varianta"]}',
-                               "official_L_100km": off,
-                               "deviation_pct": round((sim_w - off) / off * 100, 1),
-                               "source": db_u["sursa"]}]}
-            elif db_u:
-                cmp_pdf = None
-            else:
-                sp_wltc = results["serie_paralel"][wltp_cyc].consumption_L_100km
-                cmp_pdf = compare_with_sources(sp_wltc, "serie_paralel",
-                                               min_sources=3)
-            # SoC pentru fiecare ciclu selectat (arhitecturile hibride)
-            soc_pdf = {c: {a: results[a][c].SoC for a in ARCHITECTURES if a != "baseline"}
-                       for c in sel_cycles}
-            sens_pdf = sensitivity_analysis("serie_paralel", p_used, econ_used,
-                                            cycles[main_cyc], main_cyc)
-            eea_rep = load_eea_report()
-            eea_audit = None
-            if eea_rep is not None:
-                st_col = eea_rep["status"].astype(str)
-                eea_audit = {
-                    "n_ok": int(st_col.str.startswith("OK").sum()),
-                    "n_missing": int(st_col.str.startswith("NEGĂSIT").sum()),
-                    "total": len(eea_rep)}
-                eea_audit["n_check"] = (eea_audit["total"] - eea_audit["n_ok"]
-                                        - eea_audit["n_missing"])
-                if db_u:
-                    hit = eea_rep[(eea_rep["marca"] == db_u["marca"]) &
-                                  (eea_rep["model"] == db_u["model"]) &
-                                  (eea_rep["varianta"] == db_u["varianta"])]
-                    if len(hit):
-                        eea_audit["vehicle"] = hit.iloc[0].to_dict()
-            # Traseele GPS pentru ciclurile reale selectate (hartă în cap. 3)
-            _all_tracks = {**load_bundled_tracks(),
-                           **st.session_state.get("gps_tracks", {})}
-            gps_pdf = {c: _all_tracks[c] for c in sel_cycles if c in _all_tracks}
-            out = os.path.join(tempfile.gettempdir(), "raport_simulare_hev.pdf")
-            generate_pdf_report(p_used, econ_used, rows_pdf, tco_pdf, checks_pdf,
-                                cmp_pdf, soc_pdf, STRATEGY_LABELS[strat_used], out,
-                                results=results, cycles=cycles, breakeven=be_pdf,
-                                sensitivity=sens_pdf,
-                                sens_arch_label=ARCH_LABELS["serie_paralel"],
-                                eea_audit=eea_audit,
-                                report_cycles=sel_cycles, main_cycle=main_cyc,
-                                gps_tracks=gps_pdf)
-        with open(out, "rb") as f:
-            import re as _re
-            _now = datetime.now().strftime("%d-%m-%y_%H:%M")
-            _veh = p_used.name if getattr(p_used, "name", "") else "vehicul"
-            _veh = _re.sub(r"[^\w\-]+", "_", _veh).strip("_")
-            _fname = f"Simulare_{_now}_{_veh}.pdf"
-            st.download_button("Descarcă raportul PDF", f,
-                               file_name=_fname,
-                               mime="application/pdf", type="primary")
-        st.success("Raport generat cu succes.")
+        try:
+            with st.spinner("Se generează raportul… (poate dura mai mult pentru "
+                            "trasee GPS lungi, din cauza identificării străzilor)"):
+                def _reduc(a, c):
+                    base = results["baseline"][c].consumption_L_100km
+                    if not base or base <= 0:
+                        return 0.0
+                    return round((base - results[a][c].consumption_L_100km) / base * 100, 1)
+                rows_pdf = [{"Arhitectură": ARCH_LABELS[a], "Ciclu": c,
+                             "Consum [L/100km]": results[a][c].consumption_L_100km,
+                             "CO₂ [g/km]": results[a][c].co2_g_km,
+                             "Cotă EV [%]": results[a][c].ev_share_pct,
+                             "Reducere [%]": _reduc(a, c)}
+                            for a in ARCHITECTURES for c in cycles]
+                tco_pdf = []
+                for a in ARCHITECTURES:
+                    avg = np.mean([results[a][c].consumption_L_100km for c in cycles])
+                    t = compute_tco(p_used.price_EUR * PRICE_MAP[a], avg,
+                                    p_used.residual_frac, econ_used, is_hev=(a != "baseline"))
+                    tco_pdf.append({"Arhitectură": ARCH_LABELS[a], "Achiziție": t["price"],
+                                    "Energie": t["cost_energy"], "Mentenanță": t["maintenance"],
+                                    "Asigurare": t["insurance"], "Rezidual": t["residual"],
+                                    "TCO total": t["tco_total"]})
+                be_pdf = compute_breakeven(p_used.price_EUR * PRICE_MAP["baseline"],
+                                           p_used.price_EUR,
+                                           np.mean([results["baseline"][c].consumption_L_100km for c in cycles]),
+                                           np.mean([results["paralel"][c].consumption_L_100km for c in cycles]),
+                                           econ_used)
+                # Ciclul principal pentru secțiunile care rămân pe un singur ciclu
+                # (comparația WLTP, sensibilitatea): WLTC dacă e selectat, altfel primul.
+                main_cyc = "WLTC" if "WLTC" in sel_cycles else sel_cycles[0]
+                checks_pdf = physical_validation(results["paralel"][main_cyc], p_used)
+                # Comparația WLTP se face exclusiv pe ciclul de omologare WLTC.
+                # Pentru un vehicul din baza de date: cu propria valoare oficială
+                # (pe arhitectura lui reală); PHEV se omite (WLTP ponderat nu e
+                # comparabil cu simularea charge-sustaining). Altfel: sursele
+                # de referință ale lucrării (Bigster + context).
+                db_u = st.session_state.get("db_row_used")
+                wltp_cyc = "WLTC" if "WLTC" in cycles else main_cyc
+                if db_u and db_u["tip"] != "PHEV":
+                    arch_r = db_u["arhitectura"]
+                    sim_w = results[arch_r][wltp_cyc].consumption_L_100km
+                    off = float(db_u["consum_wltp_L_100km"])
+                    cmp_pdf = {"n_sources": 1,
+                               "avg_deviation_pct": round((sim_w - off) / off * 100, 1),
+                               "comparisons": [{
+                                   "name": f'{db_u["marca"]} {db_u["model"]} '
+                                           f'{db_u["varianta"]}',
+                                   "official_L_100km": off,
+                                   "deviation_pct": round((sim_w - off) / off * 100, 1),
+                                   "source": db_u["sursa"]}]}
+                elif db_u:
+                    cmp_pdf = None
+                else:
+                    sp_wltc = results["serie_paralel"][wltp_cyc].consumption_L_100km
+                    cmp_pdf = compare_with_sources(sp_wltc, "serie_paralel",
+                                                   min_sources=3)
+                # SoC pentru fiecare ciclu selectat (arhitecturile hibride)
+                soc_pdf = {c: {a: results[a][c].SoC for a in ARCHITECTURES if a != "baseline"}
+                           for c in sel_cycles}
+                sens_pdf = sensitivity_analysis("serie_paralel", p_used, econ_used,
+                                                cycles[main_cyc], main_cyc)
+                eea_rep = load_eea_report()
+                eea_audit = None
+                if eea_rep is not None:
+                    st_col = eea_rep["status"].astype(str)
+                    eea_audit = {
+                        "n_ok": int(st_col.str.startswith("OK").sum()),
+                        "n_missing": int(st_col.str.startswith("NEGĂSIT").sum()),
+                        "total": len(eea_rep)}
+                    eea_audit["n_check"] = (eea_audit["total"] - eea_audit["n_ok"]
+                                            - eea_audit["n_missing"])
+                    if db_u:
+                        hit = eea_rep[(eea_rep["marca"] == db_u["marca"]) &
+                                      (eea_rep["model"] == db_u["model"]) &
+                                      (eea_rep["varianta"] == db_u["varianta"])]
+                        if len(hit):
+                            eea_audit["vehicle"] = hit.iloc[0].to_dict()
+                # Traseele GPS pentru ciclurile reale selectate (hartă în cap. 3)
+                _all_tracks = {**load_bundled_tracks(),
+                               **st.session_state.get("gps_tracks", {})}
+                gps_pdf = {c: _all_tracks[c] for c in sel_cycles if c in _all_tracks}
+                out = os.path.join(tempfile.gettempdir(), "raport_simulare_hev.pdf")
+                generate_pdf_report(p_used, econ_used, rows_pdf, tco_pdf, checks_pdf,
+                                    cmp_pdf, soc_pdf, STRATEGY_LABELS[strat_used], out,
+                                    results=results, cycles=cycles, breakeven=be_pdf,
+                                    sensitivity=sens_pdf,
+                                    sens_arch_label=ARCH_LABELS["serie_paralel"],
+                                    eea_audit=eea_audit,
+                                    report_cycles=sel_cycles, main_cycle=main_cyc,
+                                    gps_tracks=gps_pdf)
+            with open(out, "rb") as f:
+                import re as _re
+                _now = datetime.now().strftime("%d-%m-%y_%H:%M")
+                _veh = p_used.name if getattr(p_used, "name", "") else "vehicul"
+                _veh = _re.sub(r"[^\w\-]+", "_", _veh).strip("_")
+                _fname = f"Simulare_{_now}_{_veh}.pdf"
+                st.download_button("Descarcă raportul PDF", f,
+                                   file_name=_fname,
+                                   mime="application/pdf", type="primary")
+            st.success("Raport generat cu succes.")
+        except Exception as e:
+            st.error(
+                "Generarea raportului PDF a eșuat. Cauze posibile: date lipsă "
+                "pentru ciclurile selectate, un fișier/traseu importat cu format "
+                "neașteptat, sau o problemă temporară la accesul la internet "
+                "(dacă traseul include hartă geocodificată). Încercați din nou; "
+                "dacă problema persistă, selectați mai puține cicluri sau "
+                "reporniți simularea din bara laterală.")
+            st.caption(f"Detaliu tehnic (pentru depanare): {type(e).__name__}: {e}")
 
 # ======================================================================
 #  Dispatch — pagina aleasă din meniul din sidebar

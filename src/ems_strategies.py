@@ -14,7 +14,11 @@ Capitolul 4 al lucrării:
 
     3. Dynamic Programming (DP) : optimizare globală offline, benchmark
        teoretic (optim absolut), NU implementabilă în timp real. Costisitoare
-       computațional (~30-60 s pe ciclu WLTC).
+       computațional relativ la RB/ECMS: ~1-2 s per combinație
+       arhitectură-ciclu (căutare binară „shooting" cu 24 iterații; vezi
+       _dp_solve). O rulare completă a aplicației (toate arhitecturile ×
+       toate ciclurile) durează de regulă 10-20 s — măsurat empiric, nu doar
+       estimat.
 
 Notă: cele trei strategii sunt aplicabile arhitecturilor `serie`, `paralel`
 și `serie_paralel`. Pentru `baseline` (MAI+MHEV), toate returnează același
@@ -381,8 +385,14 @@ def simulate(arch: Architecture, p: VehicleParams,
         Rezultat complet cu traiectorii și scalari.
     """
     v_ms = np.asarray(cycle_speed_kmh, dtype=float) / 3.6
-    a_ms2 = np.gradient(v_ms, dt)
     N = len(v_ms)
+    if N < 2:
+        raise ValueError(
+            f"Ciclul de conducere '{cycle_name}' are doar {N} eșantion(e) de "
+            "viteză — sunt necesare cel puțin 2, pentru a putea calcula "
+            "accelerația și derula simularea. Verificați fișierul/traseul "
+            "încărcat (poate fi gol sau are un singur rând de date).")
+    a_ms2 = np.gradient(v_ms, dt)
 
     P_engine = np.zeros(N)
     P_EM = np.zeros(N)

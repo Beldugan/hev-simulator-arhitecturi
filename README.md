@@ -82,7 +82,12 @@ hev_app_v2/
 ├── tools/
 │   └── verify_eea.py           # audit al bazei de date contra setului EEA
 ├── tests/
-│   └── test_engine.py          # teste unitare
+│   ├── test_engine.py          # teste unitare — model fizic + simulare
+│   ├── test_analysis.py        # sensibilitate + validare fizică
+│   ├── test_tco_model.py       # TCO, break-even, referințe WLTP
+│   ├── test_obd_import.py      # import loguri Torque (OBD-II)
+│   ├── test_visualizations.py  # statistici de ciclu, CYCLE_INFO, grafice
+│   └── test_pdf_export.py      # generare raport PDF (test de fum, cap-coadă)
 └── docs/
     ├── Ghid_utilizare.pdf      # ghid utilizator (docx + pdf, capturi reale)
     └── screenshots/
@@ -164,6 +169,9 @@ oficială. Editarea fișierului JSON nu necesită modificarea codului.
 ## Testare
 
 ```bash
+pip install pytest
+pytest tests/            # rulează toate suitele (54 de teste)
+# sau, fișier cu fișier, fără pytest:
 cd tests && python3 test_engine.py
 ```
 
