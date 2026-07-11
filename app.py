@@ -145,48 +145,11 @@ st.markdown("""
     /* Separatoare fine */
     hr { border: none; border-top: 0.5px solid rgba(60,60,67,.18); }
 
-    /* Buton „?" — declanșator pentru panourile de explicații (popover),
-       afișat ca simplu semn de întrebare albastru, circular, fără text și
-       fără chenar de buton. */
-    div[data-testid="stPopover"] > button {
-        background: #EAF2FF !important;
-        border: none !important;
-        border-radius: 50% !important;
-        width: 1.6rem !important;
-        height: 1.6rem !important;
-        min-width: 1.6rem !important;
-        min-height: 1.6rem !important;
-        padding: 0 !important;
-        box-shadow: none !important;
-        display: flex !important; align-items: center; justify-content: center;
-    }
-    div[data-testid="stPopover"] > button:hover { background: #D8E8FF !important; }
-    div[data-testid="stPopover"] > button p {
-        color: #007AFF !important; font-weight: 700 !important;
-        font-size: .85rem !important; margin: 0 !important;
-    }
-    div[data-testid="stPopover"] { width: auto !important; }
-
-    /* Panoul de explicații (popover) — poziționat fix, mai jos și centrat
-       pe orizontală, ca să nu mai depășească marginea de sus a ferestrei
-       atunci când declanșatorul „?" e aproape de vârful paginii (folosit
-       acum doar de meniul „Meniu"). */
-    div[data-testid="stPopoverBody"] {
-        position: fixed !important;
-        top: 16vh !important;
-        left: 50% !important;
-        right: auto !important;
-        bottom: auto !important;
-        transform: translateX(-50%) !important;
-        max-width: min(560px, 92vw) !important;
-        max-height: 70vh !important;
-        overflow-y: auto !important;
-        z-index: 9999 !important;
-    }
-
-    /* Box-uri afișate DOAR la interacțiune (hover), fără niciun buton „?" —
-       poziționate fix, în același loc cu panoul popover de mai sus. */
-    .strategy-hover-box, .vehicle-hover-box {
+    /* Toate cele 3 seturi de box-uri (strategie, vehicul, meniu) apar DOAR
+       la interacțiune (hover), fără niciun buton „?" — poziționate fix, în
+       același loc, centrate orizontal, mai jos, ca să nu depășească
+       niciodată marginea de sus a ferestrei. */
+    .strategy-hover-box, .vehicle-hover-box, .menu-hover-box {
         display: none;
         position: fixed;
         top: 16vh;
@@ -200,7 +163,7 @@ st.markdown("""
         z-index: 9999;
     }
     .strategy-hover-box { background: #EAF2FF; border: 1px solid #CFE3FF; }
-    .vehicle-hover-box { background: #EAF9EF; border: 1px solid #BEE8CC; }
+    .vehicle-hover-box, .menu-hover-box { background: #EAF9EF; border: 1px solid #BEE8CC; }
 
     /* Strategia de management energetic: doar un singur dropdown poate fi
        deschis simultan în toată aplicația, deci verificăm explicit că
@@ -223,10 +186,20 @@ st.markdown("""
        nu un al doilea :has(). Funcționează identic pentru toate vehiculele
        din bază, pentru că doar conținutul textului din box se schimbă în
        funcție de selecție, nu regula CSS. */
-    div.anchor-variant-q + div[data-testid="stElementContainer"]:hover
+    div[data-testid="stElementContainer"]:has(div.anchor-variant-q)
+        + div[data-testid="stElementContainer"]:hover
         ~ div[data-testid="stElementContainer"] .vehicle-hover-box {
         display: block !important;
     }
+
+    /* Meniu: aceeași logică ca la strategie — un singur dropdown poate fi
+       deschis simultan, deci verificăm explicit că select-ul „Meniu" e cel
+       deschis înainte de a arăta descrierea paginii aflate sub cursor. */
+    body:has(input[aria-label$="Meniu"][aria-expanded="true"]):has(li[role="option"]:nth-of-type(1):hover) .menu-hover-0 { display: block !important; }
+    body:has(input[aria-label$="Meniu"][aria-expanded="true"]):has(li[role="option"]:nth-of-type(2):hover) .menu-hover-1 { display: block !important; }
+    body:has(input[aria-label$="Meniu"][aria-expanded="true"]):has(li[role="option"]:nth-of-type(3):hover) .menu-hover-2 { display: block !important; }
+    body:has(input[aria-label$="Meniu"][aria-expanded="true"]):has(li[role="option"]:nth-of-type(4):hover) .menu-hover-3 { display: block !important; }
+    body:has(input[aria-label$="Meniu"][aria-expanded="true"]):has(li[role="option"]:nth-of-type(5):hover) .menu-hover-4 { display: block !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -297,11 +270,6 @@ _DARK_CSS = """
     }
     .stButton > button p, .stButton > button span,
     .stDownloadButton > button p { color: inherit !important; }
-    div[data-testid="stPopover"] > button {
-        background: #1C1C1E !important;
-    }
-    div[data-testid="stPopover"] > button:hover { background: #2C2C2E !important; }
-    div[data-testid="stPopover"] > button p { color: #0A84FF !important; }
     .stButton > button[kind="primary"],
     [data-testid="stBaseButton-primary"] {
         background: #0A84FF !important; color: #FFFFFF !important;
@@ -725,44 +693,35 @@ with st.sidebar:
 
     run_btn = st.button("Rulează simularea", type="primary", use_container_width=True)
 
-    _col_menu_title, _col_menu_q = st.columns([0.86, 0.14])
-    with _col_menu_title:
-        st.markdown("## Meniu")
-    with _col_menu_q:
-        st.markdown('<div style="height:.6rem"></div>', unsafe_allow_html=True)
-        _pop_menu = st.popover(
-            "?", use_container_width=False,
-            help="Ce conține fiecare pagină?")
+    st.markdown("## Meniu")
     st.session_state.active_page = st.selectbox(
         "Meniu", PAGES,
         index=PAGES.index(st.session_state.get("active_page", PAGES[0])),
         label_visibility="collapsed")
-    with _pop_menu:
-        _page_desc = [
-            ("Simulare", "Rulează cele 4 arhitecturi pe toate ciclurile alese "
-             "și arată consumul, emisiile de CO₂, traiectoria bateriei și "
-             "derularea animată a fiecărei curse."),
-            ("Sensibilitate", "Arată cât de mult se schimbă rezultatele dacă "
-             "variezi masa, prețul combustibilului sau alți parametri cu "
-             "±20% — util pentru a vedea ce contează cu adevărat."),
-            ("Comparație A/B", "Compară direct două seturi de parametri de "
-             "vehicul (de exemplu, două variante de echipare) pe aceeași "
-             "arhitectură și același ciclu."),
-            ("Validare", "Verifică dacă rezultatele simulării respectă "
-             "limitele fizice reale (bateria, puterile motoarelor) și le "
-             "compară cu valorile oficiale ale producătorilor."),
-            ("Export PDF", "Generează un raport PDF complet, cu toate "
-             "tabelele, graficele și interpretările, gata de atașat la "
-             "lucrare sau de printat."),
-        ]
-        _rows_html = "".join(
-            f'<p style="margin:0 0 12px 0;"><b>{name}</b><br>{desc}</p>'
-            for name, desc in _page_desc[:-1]
-        ) + f'<p style="margin:0;"><b>{_page_desc[-1][0]}</b><br>{_page_desc[-1][1]}</p>'
+    # Descrierea fiecărei pagini apare doar când cursorul stă deasupra
+    # opțiunii respective în dropdown-ul deschis (fără niciun buton „?"),
+    # la fel ca la strategie — vezi regulile .menu-hover-N din <style>.
+    _page_desc = [
+        "Rulează cele 4 arhitecturi pe toate ciclurile alese și arată "
+        "consumul, emisiile de CO₂, traiectoria bateriei și derularea "
+        "animată a fiecărei curse.",
+        "Arată cât de mult se schimbă rezultatele dacă variezi masa, "
+        "prețul combustibilului sau alți parametri cu ±20% — util pentru "
+        "a vedea ce contează cu adevărat.",
+        "Compară direct două seturi de parametri de vehicul (de exemplu, "
+        "două variante de echipare) pe aceeași arhitectură și același "
+        "ciclu.",
+        "Verifică dacă rezultatele simulării respectă limitele fizice "
+        "reale (bateria, puterile motoarelor) și le compară cu valorile "
+        "oficiale ale producătorilor.",
+        "Generează un raport PDF complet, cu toate tabelele, graficele "
+        "și interpretările, gata de atașat la lucrare sau de printat.",
+    ]
+    for _i, (_name, _desc) in enumerate(zip(PAGES, _page_desc)):
         st.markdown(
-            '<div style="background:#EAF9EF;border:1px solid #BEE8CC;'
-            f'border-radius:10px;padding:16px 18px;">{_rows_html}</div>',
-            unsafe_allow_html=True)
+            f'<div class="menu-hover-box menu-hover-{_i}">'
+            f'<p style="margin:0;"><b>{_name}</b><br>{_desc}</p>'
+            '</div>', unsafe_allow_html=True)
 
 cycles = load_cycles()
 PRICE_MAP = {"baseline": 0.84, "serie": 0.98, "paralel": 1.00, "serie_paralel": 1.04}
