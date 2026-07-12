@@ -73,7 +73,7 @@ def _rule_based_step(arch: Architecture, p: VehicleParams,
         P_bat = P_EM * eta_path * p.eta_regen
         return 0.0, P_EM, P_bat
 
-    # Baseline (MAI + MHEV): motor termic asigură totul; MHEV asistă limitat
+    # Referință (MAI + MHEV): motor termic asigură totul; MHEV asistă limitat
     if arch == "baseline":
         if P_dem > 0:
             # MHEV asistă cu până la 15% din cerere dacă SoC permite
@@ -466,7 +466,7 @@ def simulate(arch: Architecture, p: VehicleParams,
 #  Etichete pentru interfață
 # ======================================================================
 ARCH_LABELS: dict[str, str] = {
-    "baseline": "Baseline (MAI + MHEV)",
+    "baseline": "Referință (MAI + MHEV)",
     "serie": "Serie",
     "paralel": "Paralel",
     "serie_paralel": "Serie-paralel",

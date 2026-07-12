@@ -14,6 +14,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from vehicle_model import VehicleParams, SimulationResult, bsfc_map
+from ems_strategies import ARCH_LABELS
 
 # Paleta aplicației (profesională, consistentă)
 COLORS = {
@@ -93,7 +94,8 @@ def plot_soc_trajectory(results: dict[str, SimulationResult],
             continue
         t = np.arange(len(r.SoC))
         fig.add_trace(go.Scatter(
-            x=t, y=r.SoC * 100, mode="lines", name=arch.replace("_", "-").title(),
+            x=t, y=r.SoC * 100, mode="lines",
+            name=ARCH_LABELS.get(arch, arch).split(" (")[0],
             line=dict(color=COLORS.get(arch, "#333"), width=2),
             hovertemplate="t=%{x}s · SoC=%{y:.1f}%<extra>%{fullData.name}</extra>",
         ))
@@ -108,10 +110,10 @@ def plot_soc_trajectory(results: dict[str, SimulationResult],
 
 
 def plot_power_profile(r: SimulationResult, cycle_kmh: np.ndarray) -> go.Figure:
-    """Profil detaliat: viteză + puteri MCI/EM + putere baterie (3 panouri)."""
+    """Profil detaliat: viteza de deplasare + puterile MAI/motor electric + putere baterie (3 panouri)."""
     t = np.arange(len(cycle_kmh))
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.06,
-                        subplot_titles=("Profil de viteză", "Puteri MCI și mașină electrică",
+                        subplot_titles=("Viteza de deplasare", "Putere MAI și motor electric",
                                         "Flux de putere prin baterie"))
     th = _theme_colors()
     fig.add_trace(go.Scatter(x=t, y=cycle_kmh, name="Viteză",
@@ -167,7 +169,9 @@ def plot_bsfc_map(p: VehicleParams, r: SimulationResult | None = None) -> go.Fig
                 x=sample / 1000, y=b_pts, mode="markers", name="Puncte de operare",
                 marker=dict(color=COLORS["accent"], size=6, opacity=0.45),
             ))
-    fig.update_layout(**_LAYOUT_BASE, title="Harta consumului specific (BSFC)",
+    fig.update_layout(**_LAYOUT_BASE,
+                      title=dict(text="Harta consumului specific (BSFC)",
+                                 font=dict(size=15)),
                       xaxis_title="Putere motor [kW]", yaxis_title="BSFC [g/kWh]",
                       legend=dict(orientation="h", y=1.12))
     return _grid(fig)
@@ -181,7 +185,7 @@ def plot_consumption_bars(data: dict[str, dict[str, float]],
     cycles = list(next(iter(data.values())).keys())
     for arch in archs:
         fig.add_trace(go.Bar(
-            name=arch.replace("_", "-").title(),
+            name=ARCH_LABELS.get(arch, arch).split(" (")[0],
             x=cycles, y=[data[arch][c] for c in cycles],
             marker_color=COLORS.get(arch, "#666"),
             text=[f"{data[arch][c]:.2f}" for c in cycles],
@@ -190,6 +194,11 @@ def plot_consumption_bars(data: dict[str, dict[str, float]],
     fig.update_layout(**_LAYOUT_BASE, barmode="group", title=title,
                       yaxis_title="Consum [L/100 km]",
                       legend=dict(orientation="h", y=1.12))
+    # Etichetele ciclurilor (ex. "Real urban (Constanța)") sunt lungi și se
+    # suprapun dacă rămân orizontale — le înclinăm și mărim marginea de jos
+    # ca să încapă complet, fără să se calce una pe alta.
+    fig.update_layout(xaxis=dict(tickangle=-25),
+                      margin=dict(l=50, r=20, t=50, b=80))
     return _grid(fig)
 
 
@@ -202,11 +211,11 @@ def plot_tco_breakdown(tco_data: dict[str, dict]) -> go.Figure:
                    "#FF9500", "#007AFF", "#AEAEB2"]
     fig = go.Figure()
     for (key, label), color in zip(comp_labels, comp_colors):
-        fig.add_trace(go.Bar(name=label, x=[a.replace("_", "-").title() for a in archs],
+        fig.add_trace(go.Bar(name=label, x=[ARCH_LABELS.get(a, a).split(" (")[0] for a in archs],
                              y=[tco_data[a][key] for a in archs], marker_color=color))
     # Valoarea reziduală ca negativ
     fig.add_trace(go.Bar(name="Valoare reziduală (−)",
-                         x=[a.replace("_", "-").title() for a in archs],
+                         x=[ARCH_LABELS.get(a, a).split(" (")[0] for a in archs],
                          y=[-tco_data[a]["residual"] for a in archs],
                          marker_color="#34C759"))
     # Etichete TCO total
@@ -265,7 +274,7 @@ def plot_vehicle_comparison(res_a: dict, res_b: dict,
 
 
 # ======================================================================
-#  Derularea LIVE a ciclului + analiza pornirilor MCI
+#  Derularea LIVE a ciclului + analiza pornirilor MAI
 # ======================================================================
 CYCLE_INFO: dict[str, str] = {
     "WLTC": (
@@ -351,7 +360,7 @@ def plot_cycle_live(r: SimulationResult, speed_kmh: np.ndarray,
     complet, iar animația retrage o „cortină" albă și mută un cursor — cadrele
     conțin doar forme de layout, deci figura rămâne ușoară indiferent de durată.
 
-    Rândul 1: viteza, colorată după starea MCI (roșu = pornit, verde = electric),
+    Rândul 1: viteza, colorată după starea MAI (roșu = pornit, verde = electric),
               cu marcaje la fiecare pornire a motorului termic.
     Rândul 2: consumul de combustibil cumulat [L] și CO₂ cumulat [g].
     Rândul 3: starea de încărcare a bateriei [%].
@@ -378,16 +387,16 @@ def plot_cycle_live(r: SimulationResult, speed_kmh: np.ndarray,
     fig.add_trace(go.Scatter(x=t, y=v_ice, mode="lines",
                              line=dict(width=0), fill="tozeroy",
                              fillcolor="rgba(220,38,38,0.30)",
-                             name="MCI pornit"), row=1, col=1)
+                             name="MAI pornit"), row=1, col=1)
     fig.add_trace(go.Scatter(x=t, y=v_ev, mode="lines",
                              line=dict(width=0), fill="tozeroy",
                              fillcolor="rgba(16,185,129,0.30)",
-                             name="Electric (MCI oprit)"), row=1, col=1)
+                             name="Electric (MAI oprit)"), row=1, col=1)
     fig.add_trace(go.Scatter(x=ign["t"], y=ign["speed"], mode="markers",
                              marker=dict(symbol="triangle-up", size=9,
                                          color="#dc2626",
                                          line=dict(color="white", width=1)),
-                             name="Pornire MCI"), row=1, col=1)
+                             name="Pornire MAI"), row=1, col=1)
     fig.add_trace(go.Scatter(x=t, y=fuel_cum_L, mode="lines",
                              line=dict(color="#f59e0b", width=2),
                              name="Combustibil cumulat [L]"), row=2, col=1)
@@ -491,7 +500,7 @@ def plot_cycle_live(r: SimulationResult, speed_kmh: np.ndarray,
 
 
 def plot_ignition_scatter(r: SimulationResult, speed_kmh: np.ndarray) -> go.Figure:
-    """Pornirile MCI în planul SoC — viteză, colorate după momentul din ciclu."""
+    """Pornirile MAI în planul SoC — viteză, colorate după momentul din ciclu."""
     ign = ignition_events(r, speed_kmh)
     fig = go.Figure(go.Scatter(
         x=ign["soc"], y=ign["speed"], mode="markers",

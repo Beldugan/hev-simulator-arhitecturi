@@ -11,6 +11,7 @@ import io
 import ipaddress
 import json
 import os
+import re
 import socket
 import sys
 import tempfile
@@ -149,7 +150,8 @@ st.markdown("""
        la interacțiune (hover), fără niciun buton „?" — poziționate fix, în
        același loc, centrate orizontal, mai jos, ca să nu depășească
        niciodată marginea de sus a ferestrei. */
-    .strategy-hover-box, .vehicle-hover-box, .menu-hover-box, .obd-hover-box {
+    .strategy-hover-box, .vehicle-hover-box, .menu-hover-box, .obd-hover-box,
+    .cycle-hover-box, .chart-hover-box {
         display: none;
         position: fixed;
         top: 16vh;
@@ -164,6 +166,10 @@ st.markdown("""
     }
     .strategy-hover-box { background: #EAF2FF; border: 1px solid #CFE3FF; }
     .vehicle-hover-box, .menu-hover-box, .obd-hover-box { background: #EAF9EF; border: 1px solid #BEE8CC; }
+    .cycle-hover-box, .chart-hover-box {
+        background: #FFFFFF; border: 1px solid rgba(60,60,67,.18);
+        box-shadow: 0 8px 28px rgba(0,0,0,.14);
+    }
 
     /* Strategia de management energetic: doar un singur dropdown poate fi
        deschis simultan în toată aplicația, deci verificăm explicit că
@@ -207,6 +213,49 @@ st.markdown("""
     div[data-testid="stElementContainer"]:has(div.anchor-obd-upload-q)
         + div[data-testid="stElementContainer"]:hover
         ~ div[data-testid="stElementContainer"] .obd-hover-box {
+        display: block !important;
+    }
+
+    /* Ciclul selectat: box alb cu toate informațiile, la hover pe selector
+       — aceeași tehnică (marcaj invizibil + frați), fără niciun buton. */
+    div[data-testid="stElementContainer"]:has(div.anchor-cycle-q)
+        + div[data-testid="stElementContainer"]:hover
+        ~ div[data-testid="stElementContainer"] .cycle-hover-box {
+        display: block !important;
+    }
+
+    /* Interpretări (box alb) pentru graficele principale — fiecare cu
+       propriul marcaj invizibil și propria clasă unică, ca să nu se
+       declanșeze greșit unul pe celălalt atunci când sunt pe aceeași
+       pagină (chiar dacă toate au clasa vizuală comună .chart-hover-box). */
+    div[data-testid="stElementContainer"]:has(div.anchor-cons-chart-q)
+        + div[data-testid="stElementContainer"]:hover
+        ~ div[data-testid="stElementContainer"] .chart-hover-cons {
+        display: block !important;
+    }
+    div[data-testid="stElementContainer"]:has(div.anchor-soc-chart-q)
+        + div[data-testid="stElementContainer"]:hover
+        ~ div[data-testid="stElementContainer"] .chart-hover-soc {
+        display: block !important;
+    }
+    div[data-testid="stElementContainer"]:has(div.anchor-live-q)
+        + div[data-testid="stElementContainer"]:hover
+        ~ div[data-testid="stElementContainer"] .chart-hover-live {
+        display: block !important;
+    }
+    div[data-testid="stElementContainer"]:has(div.anchor-power-q)
+        + div[data-testid="stElementContainer"]:hover
+        ~ div[data-testid="stElementContainer"] .chart-hover-power {
+        display: block !important;
+    }
+    div[data-testid="stElementContainer"]:has(div.anchor-bsfc-q)
+        + div[data-testid="stElementContainer"]:hover
+        ~ div[data-testid="stElementContainer"] .chart-hover-bsfc {
+        display: block !important;
+    }
+    div[data-testid="stElementContainer"]:has(div.anchor-tco-q)
+        + div[data-testid="stElementContainer"]:hover
+        ~ div[data-testid="stElementContainer"] .chart-hover-tco {
         display: block !important;
     }
 </style>
@@ -322,6 +371,14 @@ with _btn_theme:
 #  Încărcarea ciclurilor (cache)
 # ======================================================================
 @st.cache_data
+def _md_bold_to_html(text: str) -> str:
+    """Convertește **bold** (Markdown) în <b>bold</b> (HTML), ca textul să
+    poată fi inclus în siguranță într-un bloc HTML randat dintr-un singur
+    apel st.markdown(..., unsafe_allow_html=True) — Streamlit nu (mai)
+    interpretează sintaxa Markdown în interiorul unui bloc HTML brut."""
+    return re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+
+
 def load_vehicle_db() -> pd.DataFrame:
     here = os.path.dirname(os.path.abspath(__file__))
     return pd.read_csv(os.path.join(here, "data", "vehicles_db.csv"))
@@ -383,7 +440,7 @@ def params_from_widgets(defaults: VehicleParams | None = None) -> VehicleParams:
         Af=st.number_input("Arie frontală [m²]", 1.5, 3.5, d.Af, 0.05, key="w_af"),
         f_rr=st.number_input("Rezist. rulare", 0.006, 0.020, d.f_rr, 0.001,
                              format="%.3f", key="w_frr"),
-        P_ICE_max_kW=st.number_input("Putere MCI [kW]", 40.0, 200.0, d.P_ICE_max_kW, 1.0, key="w_pice"),
+        P_ICE_max_kW=st.number_input("Putere MAI [kW]", 40.0, 200.0, d.P_ICE_max_kW, 1.0, key="w_pice"),
         eta_th_peak=st.number_input("Randament termic", 0.30, 0.45, d.eta_th_peak, 0.01, key="w_eta"),
         P_EM_max_kW=st.number_input("Putere EM [kW]", 10.0, 150.0, d.P_EM_max_kW, 1.0, key="w_pem"),
         bat_energy_kWh=st.number_input("Baterie [kWh]", 0.5, 60.0, d.bat_energy_kWh, 0.1, key="w_bat"),
@@ -700,43 +757,8 @@ with st.sidebar:
             rabla_plus_EUR=st.number_input("Subvenție Rabla Plus [EUR]", 0.0, 10000.0, 0.0, 500.0),
         )
 
-    run_btn = st.button("Rulează simularea", type="primary", use_container_width=True)
-
-    st.markdown("## Meniu")
-    st.session_state.active_page = st.selectbox(
-        "Meniu", PAGES,
-        index=PAGES.index(st.session_state.get("active_page", PAGES[0])),
-        label_visibility="collapsed")
-    # Descrierea fiecărei pagini apare doar când cursorul stă deasupra
-    # opțiunii respective în dropdown-ul deschis (fără niciun buton „?"),
-    # la fel ca la strategie — vezi regulile .menu-hover-N din <style>.
-    _page_desc = [
-        "Rulează cele 4 arhitecturi pe toate ciclurile alese și arată "
-        "consumul, emisiile de CO₂, traiectoria bateriei și derularea "
-        "animată a fiecărei curse.",
-        "Arată cât de mult se schimbă rezultatele dacă variezi masa, "
-        "prețul combustibilului sau alți parametri cu ±20% — util pentru "
-        "a vedea ce contează cu adevărat.",
-        "Compară direct două seturi de parametri de vehicul (de exemplu, "
-        "două variante de echipare) pe aceeași arhitectură și același "
-        "ciclu.",
-        "Verifică dacă rezultatele simulării respectă limitele fizice "
-        "reale (bateria, puterile motoarelor) și le compară cu valorile "
-        "oficiale ale producătorilor.",
-        "Generează un raport PDF complet, cu toate tabelele, graficele "
-        "și interpretările, gata de atașat la lucrare sau de printat.",
-    ]
-    for _i, (_name, _desc) in enumerate(zip(PAGES, _page_desc)):
-        st.markdown(
-            f'<div class="menu-hover-box menu-hover-{_i}">'
-            f'<p style="margin:0;"><b>{_name}</b><br>{_desc}</p>'
-            '</div>', unsafe_allow_html=True)
-
-cycles = load_cycles()
-PRICE_MAP = {"baseline": 0.84, "serie": 0.98, "paralel": 1.00, "serie_paralel": 1.04}
-
-# --- Import de trasee reale OBD-II (Torque) ca ciclu propriu ---------------
-with st.sidebar:
+    # --- Import de trasee reale OBD-II (Torque) ca ciclu propriu ---------
+    cycles = load_cycles()
     with st.expander("Traseu real (OBD-II / Torque)", expanded=False):
         # Explicația apare doar la trecerea cursorului peste butonul de
         # upload (fără text mereu vizibil) — vezi regula .obd-hover-box.
@@ -779,6 +801,39 @@ with st.sidebar:
                     "coloane de viteză și timp). "
                     f"Detaliu tehnic: {type(e).__name__}: {e}")
 
+    run_btn = st.button("Rulează simularea", type="primary", use_container_width=True)
+
+    st.markdown("## Meniu")
+    st.session_state.active_page = st.selectbox(
+        "Meniu", PAGES,
+        index=PAGES.index(st.session_state.get("active_page", PAGES[0])),
+        label_visibility="collapsed")
+    # Descrierea fiecărei pagini apare doar când cursorul stă deasupra
+    # opțiunii respective în dropdown-ul deschis (fără niciun buton „?"),
+    # la fel ca la strategie — vezi regulile .menu-hover-N din <style>.
+    _page_desc = [
+        "Rulează cele 4 arhitecturi pe toate ciclurile alese și arată "
+        "consumul, emisiile de CO₂, traiectoria bateriei și derularea "
+        "animată a fiecărei curse.",
+        "Arată cât de mult se schimbă rezultatele dacă variezi masa, "
+        "prețul combustibilului sau alți parametri cu ±20% — util pentru "
+        "a vedea ce contează cu adevărat.",
+        "Compară direct două seturi de parametri de vehicul (de exemplu, "
+        "două variante de echipare) pe aceeași arhitectură și același "
+        "ciclu.",
+        "Verifică dacă rezultatele simulării respectă limitele fizice "
+        "reale (bateria, puterile motoarelor) și le compară cu valorile "
+        "oficiale ale producătorilor.",
+        "Generează un raport PDF complet, cu toate tabelele, graficele "
+        "și interpretările, gata de atașat la lucrare sau de printat.",
+    ]
+    for _i, (_name, _desc) in enumerate(zip(PAGES, _page_desc)):
+        st.markdown(
+            f'<div class="menu-hover-box menu-hover-{_i}">'
+            f'<p style="margin:0;"><b>{_name}</b><br>{_desc}</p>'
+            '</div>', unsafe_allow_html=True)
+
+PRICE_MAP = {"baseline": 0.84, "serie": 0.98, "paralel": 1.00, "serie_paralel": 1.04}
 
 # ======================================================================
 #  Rularea simulărilor (cu cache pe sesiune)
@@ -818,15 +873,20 @@ econ_used = st.session_state.get("econ", econ)
 def page_simulare():
     # Metrici sumare
     base_wltc = results["baseline"]["WLTC"].consumption_L_100km
-    par_wltc = results["paralel"]["WLTC"].consumption_L_100km
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Baseline · WLTC [L/100km]", f"{base_wltc:.2f}")
-    c2.metric("Paralel · WLTC [L/100km]", f"{par_wltc:.2f}",
-              f"−{(base_wltc-par_wltc)/base_wltc*100:.1f}%")
     best_arch = min((a for a in ARCHITECTURES if a != "baseline"),
                     key=lambda a: results[a]["WLTC"].consumption_L_100km)
-    c3.metric("Configurația optimă", ARCH_LABELS[best_arch].split(" (")[0])
-    c4.metric("Strategie", STRATEGY_LABELS[strat_used].split(" (")[0])
+    opt_wltc = results[best_arch]["WLTC"].consumption_L_100km
+    # Variația e semnul real (Python "-") — nu un caracter minus decorativ —
+    # ca Streamlit să poată determina corect direcția săgeții: în jos pentru
+    # scădere (verde, e un lucru bun aici), în sus pentru creștere (roșu).
+    pct_vs_ref = (opt_wltc - base_wltc) / base_wltc * 100
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Consum de combustibil înregistrat de arhitectura de "
+             "referință WLTC [L/100km]", f"{base_wltc:.2f}")
+    c2.metric("Configurația optimă", ARCH_LABELS[best_arch].split(" (")[0])
+    c2.metric("Consumul înregistrat WLTC [L/100km]", f"{opt_wltc:.2f}",
+              delta=f"{pct_vs_ref:+.1f}%", delta_color="inverse")
+    c3.metric("Strategie", STRATEGY_LABELS[strat_used].split(" (")[0])
 
     rows = []
     for arch in ARCHITECTURES:
@@ -847,36 +907,87 @@ def page_simulare():
     with colA:
         cons_data = {a: {c: results[a][c].consumption_L_100km for c in cycles}
                      for a in ARCHITECTURES}
+        # Interpretarea graficului apare la trecerea cursorului peste el
+        # (marcaj invizibil + regulă CSS .anchor-cons-chart-q).
+        st.markdown('<div class="anchor-cons-chart-q"></div>',
+                    unsafe_allow_html=True)
         st.plotly_chart(plot_consumption_bars(cons_data), use_container_width=True)
+        st.markdown(
+            '<div class="chart-hover-box chart-hover-cons">Acest grafic pune alături consumul '
+            'de combustibil al celor patru arhitecturi, măsurat pe fiecare '
+            'ciclu de testare în parte, ca să se vadă dintr-o privire care '
+            'configurație economisește mai mult combustibil și în ce '
+            'situație — condus la oraș, la drum lung sau pe traseele reale '
+            'înregistrate. Bara gri arată vehiculul de referință, față de '
+            'care sunt comparate celelalte trei arhitecturi hibride.'
+            '</div>', unsafe_allow_html=True)
     with colB:
+        st.markdown('<div class="anchor-soc-chart-q"></div>',
+                    unsafe_allow_html=True)
         st.plotly_chart(plot_soc_trajectory(
             {a: results[a]["WLTC"] for a in ARCHITECTURES}, p_used),
             use_container_width=True)
+        st.markdown(
+            '<div class="chart-hover-box chart-hover-soc">Acest grafic urmărește, secundă '
+            'cu secundă pe parcursul ciclului de testare, cât de plină '
+            'rămâne bateria pentru fiecare arhitectură. O linie care se '
+            'menține aproape de nivelul de plecare arată o strategie '
+            'echilibrată, care nu consumă bateria mai mult decât o '
+            'reîncarcă; o linie care coboară constant spre pragul minim '
+            'arată o arhitectură care se bazează mai mult pe motorul '
+            'termic spre finalul cursei.</div>', unsafe_allow_html=True)
 
     with st.expander("Analiză detaliată pe arhitectură", expanded=False):
         sel_arch = st.selectbox("Arhitectura", [a for a in ARCHITECTURES],
                                 format_func=lambda a: ARCH_LABELS[a])
+        # Marcaj invizibil pus imediat înainte de selectorul "Ciclul" —
+        # folosit de CSS ca să identifice exact acest select, fără
+        # ambiguitate cu celelalte din pagină.
+        st.markdown('<div class="anchor-cycle-q"></div>', unsafe_allow_html=True)
         sel_cyc = st.selectbox("Ciclul", list(cycles.keys()))
         r_sel = results[sel_arch][sel_cyc]
 
-        # --- Ce înseamnă ciclul selectat ---
-        st.markdown("##### Despre ciclul selectat")
+        # --- Ce înseamnă ciclul selectat — totul într-un singur box alb,
+        # afișat doar la trecerea cursorului peste selectorul "Ciclul"
+        # (fără text mereu vizibil). ---
         if sel_cyc in CYCLE_INFO:
-            st.markdown(CYCLE_INFO[sel_cyc])
+            _cyc_desc_html = _md_bold_to_html(CYCLE_INFO[sel_cyc])
         elif sel_cyc.startswith("Real:"):
             _cs_here = cycle_stats(cycles[sel_cyc])
-            st.markdown(
-                f"**Traseu propriu importat** — încărcat de utilizator dintr-un "
-                f"log OBD-II (Torque), reeșantionat la 1 Hz. Nu este un ciclu "
-                f"standardizat de omologare, ci o înregistrare reală: "
-                f"~{_cs_here['distance_km']:.1f} km, {_cs_here['n_stops']} opriri "
-                f"complete, viteză maximă {_cs_here['v_max']:.0f} km/h. Util "
-                f"pentru a compara arhitecturile pe *propriul* stil de condus, "
-                f"nu pentru omologare.")
+            _cyc_desc_html = (
+                f"<b>Traseu propriu importat</b> — încărcat de utilizator "
+                f"dintr-un log OBD-II (Torque), reeșantionat la 1 Hz. Nu este "
+                f"un ciclu standardizat de omologare, ci o înregistrare reală: "
+                f"~{_cs_here['distance_km']:.1f} km, {_cs_here['n_stops']} "
+                f"opriri complete, viteză maximă {_cs_here['v_max']:.0f} km/h. "
+                f"Util pentru a compara arhitecturile pe <i>propriul</i> stil "
+                f"de condus, nu pentru omologare.")
         else:
-            st.caption("Nu există o descriere pentru acest ciclu.")
+            _cyc_desc_html = "Nu există o descriere pentru acest ciclu."
+        cs = cycle_stats(cycles[sel_cyc])
+        st.markdown(
+            '<div class="cycle-hover-box">'
+            '<p style="margin:0 0 10px 0;"><b>Despre ciclul selectat</b></p>'
+            f'<p style="margin:0 0 14px 0;">{_cyc_desc_html}</p>'
+            '<p style="margin:0 0 10px 0;color:#666;">Valorile de mai jos '
+            'sunt calculate din profilul de viteză efectiv încărcat în '
+            'aplicație:</p>'
+            '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px;">'
+            '<div><p style="margin:0;color:#666;font-size:.8rem;">Durată [s]</p>'
+            f'<p style="margin:0;font-weight:700;font-size:1.3rem;">{cs["duration_s"]}</p></div>'
+            '<div><p style="margin:0;color:#666;font-size:.8rem;">Distanță [km]</p>'
+            f'<p style="margin:0;font-weight:700;font-size:1.3rem;">{cs["distance_km"]:.2f}</p></div>'
+            '<div><p style="margin:0;color:#666;font-size:.8rem;">Viteză medie / în mers [km/h]</p>'
+            f'<p style="margin:0;font-weight:700;font-size:1.3rem;">{cs["v_avg"]:.1f} / {cs["v_avg_moving"]:.1f}</p></div>'
+            '<div><p style="margin:0;color:#666;font-size:.8rem;">Viteză maximă [km/h]</p>'
+            f'<p style="margin:0;font-weight:700;font-size:1.3rem;">{cs["v_max"]:.1f}</p></div>'
+            '</div>'
+            f'<p style="margin:0;color:#666;">Staționare: {cs["idle_pct"]:.0f}% '
+            f'din durată · {cs["n_stops"]} opriri complete.</p>'
+            '</div>', unsafe_allow_html=True)
 
-        # Harta traseului real, dacă ciclul selectat are traseu GPS
+        # Harta traseului real, dacă ciclul selectat are traseu GPS — rămâne
+        # mereu vizibilă (e o hartă interactivă, nu doar text).
         _tracks = {**load_bundled_tracks(),
                    **st.session_state.get("gps_tracks", {})}
         if sel_cyc in _tracks:
@@ -888,42 +999,38 @@ def page_simulare():
                            "reflectă viteza: albastru = oprit/lent, verde-galben = "
                            "mediu, roșu = viteză mare. Marcaje: verde = start, "
                            "roșu = sfârșit.")
-        st.caption("Valorile de mai jos sunt calculate din profilul de viteză "
-                   "efectiv încărcat în aplicație:")
-        cs = cycle_stats(cycles[sel_cyc])
-        k1, k2, k3, k4 = st.columns(4)
-        k1.metric("Durată [s]", f"{cs['duration_s']}")
-        k2.metric("Distanță [km]", f"{cs['distance_km']:.2f}")
-        k3.metric("Viteză medie / în mers [km/h]",
-                  f"{cs['v_avg']:.1f} / {cs['v_avg_moving']:.1f}")
-        k4.metric("Viteză maximă [km/h]", f"{cs['v_max']:.1f}")
-        st.caption(f"Staționare: {cs['idle_pct']:.0f}% din durată · "
-                   f"{cs['n_stops']} opriri complete.")
 
         # --- Derularea LIVE ---
         st.markdown("##### Derularea LIVE a ciclului")
         _SPEEDS = [1, 5, 10, 15, 20, 25, 30]
         spd_cur = st.session_state.get("live_speed", 1)
         b_l, b_r = st.columns([0.32, 0.68])
-        lbl = "Redare: timp real (1×)" if spd_cur == 1 else f"Redare: {spd_cur}×"
-        if b_l.button(lbl, help="Fiecare apăsare crește viteza de derulare cu 5×, "
-                                "până la maximum 30×; apoi revine la timp real."):
-            st.session_state["live_speed"] = _SPEEDS[
-                (_SPEEDS.index(spd_cur) + 1) % len(_SPEEDS)]
+        spd_new = b_l.selectbox(
+            "Viteza de derulare", _SPEEDS, index=_SPEEDS.index(spd_cur),
+            format_func=lambda v: "Redare: timp real (1×)" if v == 1 else f"Redare: {v}×",
+            help="Alegeți viteza de derulare a animației — de la timp real "
+                 "(1×) până la 30× mai rapid.")
+        if spd_new != spd_cur:
+            st.session_state["live_speed"] = spd_new
             st.rerun()
         b_r.caption(f"La viteza curentă, redarea completă durează "
                     f"~{cs['duration_s'] // max(1, spd_cur)} s "
                     f"(ciclul real: {cs['duration_s']} s).")
+        # Explicația comenzilor apare doar la trecerea cursorului peste
+        # grafic (fără text mereu vizibil sub el) — vezi .anchor-live-q.
+        st.markdown('<div class="anchor-live-q"></div>', unsafe_allow_html=True)
         st.plotly_chart(
             plot_cycle_live(r_sel, cycles[sel_cyc], p_used,
                             f"{ARCH_LABELS[sel_arch]} · {sel_cyc}",
                             speed=spd_cur),
             use_container_width=True)
-        st.caption("Apăsați **▶ Redă** pentru derularea în timp: banda roșie = "
-                   "motorul termic pornit, banda verde = rulare electrică; "
-                   "triunghiurile marchează pornirile MCI. Rândul 2: consumul de "
-                   "combustibil și CO₂ cumulate; rândul 3: starea de încărcare a "
-                   "bateriei. Cursorul de sus permite saltul la orice moment.")
+        st.markdown(
+            '<div class="chart-hover-box chart-hover-live">Apăsați ▶ Redă pentru derularea în '
+            'timp: banda roșie = motorul termic pornit, banda verde = '
+            'rulare electrică; triunghiurile marchează pornirile MAI. '
+            'Rândul 2: consumul de combustibil și CO₂ cumulate; rândul 3: '
+            'starea de încărcare a bateriei. Cursorul de jos permite saltul '
+            'la orice moment.</div>', unsafe_allow_html=True)
 
         # --- Pornirile motorului termic ---
         if sel_arch != "baseline":
@@ -953,9 +1060,40 @@ def page_simulare():
             else:
                 st.info("Motorul termic nu a pornit pe acest ciclu.")
 
-        st.markdown("##### Profilul de putere și harta BSFC")
+        # Interpretarea celor 3 grafice de putere apare la trecerea
+        # cursorului peste titlul "Profilul de putere" (fără text mereu
+        # vizibil) — vezi .anchor-power-q. Font-ul titlului e potrivit
+        # exact cu cel al titlului "Harta consumului specific (BSFC)"
+        # (15px), din interiorul graficului BSFC de mai jos.
+        st.markdown('<div class="anchor-power-q"></div>', unsafe_allow_html=True)
+        st.markdown(
+            '<p style="font-size:15px;font-weight:600;margin:1rem 0 .5rem 0;">'
+            'Profilul de putere</p>', unsafe_allow_html=True)
         st.plotly_chart(plot_power_profile(r_sel, cycles[sel_cyc]), use_container_width=True)
+        st.markdown(
+            '<div class="chart-hover-box chart-hover-power">Cele trei panouri arată, secundă '
+            'cu secundă pe parcursul ciclului, cum se împarte efortul de '
+            'propulsie: sus, viteza de deplasare a mașinii; la mijloc, cât '
+            'de mult lucrează motorul termic față de motorul electric, în '
+            'fiecare moment; jos, fluxul de putere prin baterie — roșu '
+            'atunci când bateria se descarcă pentru a ajuta la propulsie, '
+            'verde atunci când se reîncarcă din frânare sau de la motorul '
+            'termic. Citite împreună, cele trei panouri arată exact ce '
+            'decizie ia strategia de management energetic în fiecare '
+            'clipă a cursei.</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="anchor-bsfc-q"></div>', unsafe_allow_html=True)
         st.plotly_chart(plot_bsfc_map(p_used, r_sel), use_container_width=True)
+        st.markdown(
+            '<div class="chart-hover-box chart-hover-bsfc">Acest grafic arată cât de mult '
+            'combustibil consumă motorul termic pentru fiecare kilowatt-oră '
+            'de energie produsă, în funcție de cât de încărcat este la un '
+            'moment dat — practic, o hartă a randamentului motorului. Zona '
+            'verde marchează punctul cel mai eficient de funcționare; '
+            'punctele portocalii arată unde a funcționat motorul de fapt '
+            'în cursa simulată. Cu cât punctele sunt mai aproape de zona '
+            'verde, cu atât motorul a fost folosit mai eficient.</div>',
+            unsafe_allow_html=True)
 
     with st.expander("Costul total de proprietate", expanded=False):
         tco_data = {}
@@ -964,14 +1102,25 @@ def page_simulare():
             tco_data[arch] = compute_tco(p_used.price_EUR * PRICE_MAP[arch], avg,
                                          p_used.residual_frac, econ_used,
                                          is_hev=(arch != "baseline"))
+        st.markdown('<div class="anchor-tco-q"></div>', unsafe_allow_html=True)
         st.plotly_chart(plot_tco_breakdown(tco_data), use_container_width=True)
+        st.markdown(
+            '<div class="chart-hover-box chart-hover-tco">Acest grafic descompune costul '
+            'total pe care îl are mașina de-a lungul a 10 ani de utilizare: '
+            'prețul de achiziție, combustibilul și electricitatea '
+            'consumate, mentenanța și asigurarea/taxele, din care se scade '
+            'valoarea reziduală estimată la revânzare. Comparând '
+            'înălțimea totală a barelor, se vede care arhitectură este mai '
+            'ieftină pe termen lung, nu doar la cumpărare.</div>',
+            unsafe_allow_html=True)
         be = compute_breakeven(p_used.price_EUR * PRICE_MAP["baseline"],
                                p_used.price_EUR,
                                np.mean([results["baseline"][c].consumption_L_100km for c in cycles]),
                                np.mean([results["paralel"][c].consumption_L_100km for c in cycles]),
                                econ_used)
         if be.get("years"):
-            st.success(f"**Break-even Paralel vs Baseline:** {be['years']} ani "
+            st.success(f"**Pragul de rentabilitate hibrid în configurație "
+                       f"paralel vs. vehicul de referință:** {be['years']} ani "
                        f"(~{be['km']:,} km) · economie anuală {be['annual_saving']:.0f} EUR".replace(",", " "))
 
     with st.expander("Comparația cu valorile WLTP oficiale", expanded=False):
@@ -994,13 +1143,19 @@ def page_simulare():
                     "Mărime": "Consum simulat charge-sustaining · WLTC",
                     "Valoare": f"{sim_w:.3f} L/100 km"}]),
                     use_container_width=True, hide_index=True)
-                st.caption("**PHEV:** valoarea de omologare este ponderată cu "
-                           "factorul de utilitate (pornire cu bateria plină) și "
-                           "NU este comparabilă direct cu simularea "
-                           "charge-sustaining; consumul simulat corespunde "
-                           "rulării cu bateria descărcată la nivelul țintă "
-                           "(coloana „consum susținut” din fișele WLTP, acolo "
-                           "unde constructorul o publică).")
+                st.caption(
+                    "**PHEV:** valoarea de omologare a consumului de "
+                    "combustibil este ponderată prin aplicarea factorului de "
+                    "utilitate (Utility Factor – UF), presupunând pornirea cu "
+                    "bateria complet încărcată. Prin urmare, aceasta nu este "
+                    "direct comparabilă cu rezultatele unei simulări în regim "
+                    "charge-sustaining (CS). Consumul simulat corespunde "
+                    "funcționării vehiculului după epuizarea energiei "
+                    "electrice utilizabile și stabilizarea stării de "
+                    "încărcare în jurul valorii-țintă a bateriei, fiind "
+                    "echivalent cu „consumul susținut” (charge-sustaining "
+                    "fuel consumption) din fișele WLTP, în situațiile în care "
+                    "producătorul publică această informație.")
             else:
                 dev = (sim_w - off) / off * 100
                 st.dataframe(pd.DataFrame([{
@@ -1073,14 +1228,14 @@ def page_comparatie():
         st.markdown("**Vehicul A**")
         mA = st.number_input("Masă A [kg]", 800.0, 3000.0, 1494.0, 10.0)
         cdA = st.number_input("Cd A", 0.20, 0.50, 0.32, 0.01)
-        peA = st.number_input("Putere MCI A [kW]", 40.0, 200.0, 80.0, 1.0)
+        peA = st.number_input("Putere MAI A [kW]", 40.0, 200.0, 80.0, 1.0)
         batA = st.number_input("Baterie A [kWh]", 0.5, 60.0, 1.4, 0.1)
         prA = st.number_input("Preț A [EUR]", 15000.0, 90000.0, 28590.0, 100.0)
     with colB:
         st.markdown("**Vehicul B**")
         mB = st.number_input("Masă B [kg]", 800.0, 3000.0, 1650.0, 10.0)
         cdB = st.number_input("Cd B", 0.20, 0.50, 0.30, 0.01)
-        peB = st.number_input("Putere MCI B [kW]", 40.0, 200.0, 95.0, 1.0)
+        peB = st.number_input("Putere MAI B [kW]", 40.0, 200.0, 95.0, 1.0)
         batB = st.number_input("Baterie B [kWh]", 0.5, 60.0, 1.8, 0.1)
         prB = st.number_input("Preț B [EUR]", 15000.0, 90000.0, 32000.0, 100.0)
     if st.button("Compară vehiculele", type="primary"):
@@ -1296,5 +1451,8 @@ PAGE_FUNCS = {
 PAGE_FUNCS[st.session_state.active_page]()
 
 st.markdown("---")
-st.caption("Model cvasi-static backward-forward · WLTC din biblioteca `wltp` (UNECE GTR15) · "
-           "Cod sursă deschis, licență MIT · © 2026 A.M. Beldugan, FIMIM, Univ. Ovidius Constanța")
+st.caption("Aplicația utilizează un model de simulare cvasi-static de tip "
+           "backward-forward și ciclul de conducere WLTC definit de UNECE "
+           "GTR No. 15. Codul sursă este distribuit sub licența MIT. © 2026 "
+           "A.M. Beldugan, Facultatea de Inginerie Mecanică Industrială și "
+           "Maritimă, Universitatea Ovidius din Constanța.")

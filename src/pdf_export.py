@@ -596,7 +596,7 @@ def _tornado_chart(effects: list[dict], base: float, xlabel: str,
 def _live_final_chart(r: SimulationResult, speed_kmh: np.ndarray,
                       p: VehicleParams, title: str) -> Image:
     """Starea finală a derulării LIVE din aplicație (3 panouri):
-    viteză colorată după starea MCI + porniri, combustibil/CO₂ cumulate, SoC."""
+    viteză colorată după starea MAI + porniri, combustibil/CO₂ cumulate, SoC."""
     v = np.asarray(speed_kmh, dtype=float)
     t = np.arange(len(v))
     on = r.P_engine_W > 500.0
@@ -611,13 +611,13 @@ def _live_final_chart(r: SimulationResult, speed_kmh: np.ndarray,
                                      gridspec_kw={"height_ratios": [1.3, 1, 1]})
     a1.plot(t, v, c="#3C3C43", lw=0.9)
     a1.fill_between(t, np.where(on, v, 0.0), color="#FF3B30", alpha=0.30,
-                    label="MCI pornit")
+                    label="MAI pornit")
     a1.fill_between(t, np.where(~on, v, 0.0), color="#34C759", alpha=0.30,
-                    label="Electric (MCI oprit)")
+                    label="Electric (MAI oprit)")
     if len(starts):
         a1.scatter(starts, v[starts], marker="^", s=26, c="#FF3B30",
                    edgecolors="white", linewidths=0.6, zorder=3,
-                   label="Pornire MCI")
+                   label="Pornire MAI")
     a1.set_ylabel("km/h"); a1.legend(fontsize=7, ncol=3, loc="upper left")
     a1.set_title(title, fontsize=10)
 
@@ -725,7 +725,7 @@ def generate_pdf_report(
     # ---- 1. Parametrii de intrare ----
     story.append(Paragraph("1. Parametrii de intrare", ss["H2x"]))
     param_rows = [["Parametru", "Valoare", "Parametru", "Valoare"],
-                  ["Masă [kg]", f"{p.mass_kg:.0f}", "Putere MCI [kW]", f"{p.P_ICE_max_kW:.0f}"],
+                  ["Masă [kg]", f"{p.mass_kg:.0f}", "Putere MAI [kW]", f"{p.P_ICE_max_kW:.0f}"],
                   ["Cd × Af [m²]", f"{p.Cd:.2f} × {p.Af:.2f}", "Randament termic", f"{p.eta_th_peak:.2f}"],
                   ["Rezist. rulare", f"{p.f_rr:.4f}", "Putere EM [kW]", f"{p.P_EM_max_kW:.0f}"],
                   ["Baterie [kWh]", f"{p.bat_energy_kWh:.1f}", "Preț [EUR]", _fmt_int(p.price_EUR)],
@@ -757,7 +757,7 @@ def generate_pdf_report(
                          f'{r["CO₂ [g/km]"]:.1f}', f'{r["Reducere [%]"]:.1f}'] for r in results_table]
         story.append(_tbl(rows, [4.2 * cm, 2.6 * cm, 3.6 * cm, 3 * cm, 3 * cm]))
 
-    hev_rows = [r for r in results_table if "Baseline" not in r["Arhitectură"]]
+    hev_rows = [r for r in results_table if "Referință" not in r["Arhitectură"]]
 
     # ---- 2.1 Consum ----
     if has_full:
@@ -962,7 +962,7 @@ def generate_pdf_report(
                         f"atinge {pem_max:.1f} kW în tracțiune și recuperează "
                         f"{e_regen:.2f} kWh prin frânare regenerativă. Se consumă "
                         f"{fuel_tot_L:.2f} L de combustibil ({co2_tot_g:.0f} g CO₂), "
-                        f"acumulați în fazele cu banda roșie (MCI pornit); pe "
+                        f"acumulați în fazele cu banda roșie (MAI pornit); pe "
                         f"segmentele verzi vehiculul rulează electric. "
                         + arch_note.get(a, "")),
                     Spacer(1, 10),
@@ -988,7 +988,7 @@ def generate_pdf_report(
                         f"atinge {pem_max:.1f} kW în tracțiune și recuperează "
                         f"{e_regen:.2f} kWh prin frânare regenerativă. Se consumă "
                         f"{fuel_tot_L:.2f} L de combustibil ({co2_tot_g:.0f} g CO₂), "
-                        f"acumulați în fazele cu banda roșie (MCI pornit); pe "
+                        f"acumulați în fazele cu banda roșie (MAI pornit); pe "
                         f"segmentele verzi vehiculul rulează electric. "
                         + arch_note.get(a, "")))
                     story.append(Spacer(1, 10))
