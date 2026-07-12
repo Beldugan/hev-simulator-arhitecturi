@@ -146,12 +146,12 @@ st.markdown("""
     /* Separatoare fine */
     hr { border: none; border-top: 0.5px solid rgba(60,60,67,.18); }
 
-    /* Toate cele 3 seturi de box-uri (strategie, vehicul, meniu) apar DOAR
-       la interacțiune (hover), fără niciun buton „?" — poziționate fix, în
-       același loc, centrate orizontal, mai jos, ca să nu depășească
-       niciodată marginea de sus a ferestrei. */
-    .strategy-hover-box, .vehicle-hover-box, .menu-hover-box, .obd-hover-box,
-    .cycle-hover-box, .chart-hover-box {
+    /* Strategie/vehicul/meniu/OBD apar DOAR la interacțiune (hover), fără
+       niciun buton „?" — poziționate FIX pe ecran (position:fixed), pentru
+       că trăiesc într-o bară laterală scurtă, unde riscul de suprapunere
+       cu alt conținut aflat mai jos pe pagină, la un scroll diferit, e
+       neglijabil (verificat live, funcționează corect). */
+    .strategy-hover-box, .vehicle-hover-box, .menu-hover-box, .obd-hover-box {
         display: none;
         position: fixed;
         top: 16vh;
@@ -166,10 +166,42 @@ st.markdown("""
     }
     .strategy-hover-box { background: #EAF2FF; border: 1px solid #CFE3FF; }
     .vehicle-hover-box, .menu-hover-box, .obd-hover-box { background: #EAF9EF; border: 1px solid #BEE8CC; }
+
+    /* .cycle-hover-box și .chart-hover-box trăiesc pe o pagină LUNGĂ, cu
+       mai multe grafice răsfirate pe verticală (consum, SoC, redare live,
+       putere, BSFC, TCO). Cu position:fixed (varianta inițială), oricare
+       dintre ele apărea mereu la ACEEAȘI poziție din FEREASTRĂ — nu din
+       PAGINĂ — deci dacă utilizatorul derula pagina și apoi trecea
+       cursorul peste un titlu de grafic aflat sus, box-ul apărea exact
+       acolo unde se întâmpla să fie derulată pagina în acel moment,
+       suprapunându-se peste orice grafic era vizibil atunci (verificat
+       direct pe aplicația publicată: box-ul de la SoC apărea peste
+       graficul de redare live, aflat mult mai jos pe pagină). Soluție:
+       position:absolute, relativ la propriul container din pagină (care
+       scrolează normal, împreună cu restul conținutului) — pentru
+       consum/SoC, ancora este rândul cu cele 2 coloane
+       (stHorizontalBlock, făcut position:relative mai jos), ca boxul să
+       rămână centrat pe tot rândul, nu doar pe o singură coloană îngustă;
+       pentru celelalte (ciclu, redare live, putere, BSFC, TCO), ancora e
+       chiar containerul individual al fiecărui marcaj/box (deja făcut
+       position:relative prin aceeași regulă de mai jos care le colapsează
+       la înălțime 0). */
     .cycle-hover-box, .chart-hover-box {
+        display: none;
+        position: absolute;
+        top: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: min(560px, 92vw);
+        max-height: 70vh;
+        overflow-y: auto;
+        border-radius: 10px;
+        padding: 16px 18px;
+        z-index: 9999;
         background: #FFFFFF; border: 1px solid rgba(60,60,67,.18);
         box-shadow: 0 8px 28px rgba(0,0,0,.14);
     }
+    div[data-testid="stHorizontalBlock"] { position: relative; }
     /* .chart-hover-box centrează la 50% din FEREASTRĂ (nu din conținutul
        principal), iar "Consum pe arhitecturi și cicluri" și "Evoluția
        SoC" stau unul lângă altul, în două coloane. Cât timp bara laterală
@@ -227,6 +259,22 @@ st.markdown("""
         height: 0 !important;
         min-height: 0 !important;
         overflow: visible !important;
+    }
+
+    /* Ancoră de poziționare pentru .cycle-hover-box/.chart-hover-box
+       (position:absolute — vezi mai sus). Pentru consum/SoC (în cele 2
+       coloane) NU punem position:relative pe containerul lor individual
+       — vrem ca ele să se poziționeze relativ la ÎNTREG rândul cu cele 2
+       coloane (stHorizontalBlock, deja position:relative), nu doar la
+       propria coloană îngustă. Pentru ciclu/redare live/putere/BSFC/TCO
+       (cu layout pe o singură coloană), containerul individual e cea mai
+       apropiată ancoră utilă. */
+    div[data-testid="stElementContainer"]:has(div.cycle-hover-box),
+    div[data-testid="stElementContainer"]:has(div.chart-hover-live),
+    div[data-testid="stElementContainer"]:has(div.chart-hover-power),
+    div[data-testid="stElementContainer"]:has(div.chart-hover-bsfc),
+    div[data-testid="stElementContainer"]:has(div.chart-hover-tco) {
+        position: relative !important;
     }
 
     /* Strategia de management energetic: doar un singur dropdown poate fi

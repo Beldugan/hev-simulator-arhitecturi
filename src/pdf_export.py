@@ -157,15 +157,10 @@ def _watermark(cv, doc) -> None:
 
 def _watermark_first(cv, doc) -> None:
     """Prima pagină: subsol + logo AR semitransparent, poziționat sub blocul de
-    titlu (centrat-dreapta) ca să nu se suprapună cu textul. Sub logo-ul AR,
-    la aceeași dimensiune, este desenat și logo-ul aplicației (simulatorul
-    hibrid) — titlul/subtitlul de pe prima pagină folosesc un rightIndent
-    care rezervă spațiu orizontal pe toată înălțimea coloanei de text,
-    exact ca să nu se suprapună cu cele DOUĂ logo-uri stivuite."""
+    titlu (centrat-dreapta) ca să nu se suprapună cu textul."""
     _watermark(cv, doc)
     W, H = A4
     size = 3.0 * cm
-    gap = 0.2 * cm
     assets_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               "..", "assets")
     logo_ar = os.path.join(assets_dir, "logo_ar_50.png")
@@ -180,28 +175,6 @@ def _watermark_first(cv, doc) -> None:
         except Exception as e:
             # Nefatal: raportul se generează în continuare fără logo pe prima pagină.
             logger.warning("Nu s-a putut desena logo-ul AR pe prima pagină (%s).", e)
-    logo_hybrid = os.path.join(assets_dir, "logo_hybrid.png")
-    if os.path.exists(logo_hybrid):
-        try:
-            # Logo-ul aplicației e lat (nu pătrat, ca cel AR) — dacă îl
-            # forțăm într-o cutie pătrată size×size cu preserveAspectRatio,
-            # ReportLab îl „letterbox-uiește" (îl scalează după LĂȚIME și
-            # lasă spațiu gol deasupra/dedesubt, în cutie), rezultând un
-            # gol mult mai mare decât `gap`-ul dorit — verificat direct în
-            # PDF-ul generat, cu pdfplumber, prin măsurarea poziției reale
-            # a imaginii. Soluție: calculăm înălțimea reală din raportul de
-            # aspect al fișierului (lățime = size, ca la logo-ul AR — deci
-            # „aceeași dimensiune" pe lățime — iar înălțimea rezultă din
-            # proporțiile logo-ului), și îl poziționăm noi înșine, exact
-            # `gap` sub logo-ul AR, fără cutie irosită.
-            iw, ih = ImageReader(logo_hybrid).getSize()
-            h_hybrid = size * ih / iw
-            cv.drawImage(logo_hybrid, logo_x, logo_ar_y - gap - h_hybrid,
-                         width=size, height=h_hybrid, mask="auto",
-                         preserveAspectRatio=True)
-        except Exception as e:
-            logger.warning(
-                "Nu s-a putut desena logo-ul aplicației pe prima pagină (%s).", e)
 
 
 # ======================================================================
@@ -215,6 +188,15 @@ def _styles():
     ss.add(ParagraphStyle("H1x", parent=ss["Heading1"], fontName=_FONT_BOLD,
                           fontSize=17, textColor=HDR, spaceAfter=10,
                           keepWithNext=True, rightIndent=3.4 * cm))
+    # Titlul primei pagini reproduce grafica textului din logo-ul
+    # aplicației: "HYBRID" mare, bold, bleumarin, urmat de "POWERTRAIN"
+    # (verde) + "SIMULATOR" (bleumarin), aceleași două tonuri ca în logo.
+    ss.add(ParagraphStyle("H1x_logo", parent=ss["Heading1"], fontName=_FONT_BOLD,
+                          fontSize=26, textColor=colors.HexColor("#0B2A4A"),
+                          spaceAfter=2, keepWithNext=True, rightIndent=3.4 * cm))
+    ss.add(ParagraphStyle("H1x_logo_sub", parent=ss["Heading1"], fontName=_FONT_BOLD,
+                          fontSize=12, spaceAfter=10, keepWithNext=True,
+                          rightIndent=3.4 * cm))
     ss.add(ParagraphStyle("H2x", parent=ss["Heading2"], fontName=_FONT_BOLD,
                           fontSize=13, textColor=INK, spaceBefore=14, spaceAfter=6))
     ss.add(ParagraphStyle("H3x", parent=ss["Heading2"], fontName=_FONT_BOLD,
@@ -747,7 +729,10 @@ def generate_pdf_report(
     hyb = [a for a in arch_order if a != "baseline"]
 
     # ---- Copertă / titlu ----
-    story.append(Paragraph("Raport de simulare — Arhitecturi de propulsie hibridă", ss["H1x"]))
+    story.append(Paragraph('<font color="#0B2A4A">HYBRID</font>', ss["H1x_logo"]))
+    story.append(Paragraph(
+        '<font color="#3FAE3A">POWERTRAIN</font>'
+        ' <font color="#0B2A4A">SIMULATOR</font>', ss["H1x_logo_sub"]))
     story.append(Paragraph(
         f"Generat: {datetime.now().strftime('%d.%m.%Y %H:%M')} · "
         f"Vehicul: <b>{p.name}</b> · Strategie EMS: <b>{strategy_label}</b>", ss["Metax"]))
