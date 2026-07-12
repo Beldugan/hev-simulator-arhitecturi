@@ -629,7 +629,9 @@ def load_external_params(uploaded, url: str) -> tuple[VehicleParams, list[str]]:
 PAGES = ["Simulare", "Sensibilitate", "Comparație A/B", "Validare", "Export PDF"]
 
 with st.sidebar:
-    st.markdown("# Simulator al arhitecturilor de propulsie hibridă")
+    st.image(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "assets", "logo_hybrid.png"),
+               use_container_width=True)
     st.markdown("## Configurare date de intrare")
     mode = st.selectbox("Sursa datelor",
                         ["Preset: Bigster (lucrare)",

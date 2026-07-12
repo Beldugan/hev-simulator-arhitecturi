@@ -192,14 +192,26 @@ def plot_consumption_bars(data: dict[str, dict[str, float]],
             textposition="outside", textfont=dict(size=11),
         ))
     fig.update_layout(**_LAYOUT_BASE, barmode="group", title=title,
-                      yaxis_title="Consum [L/100 km]",
-                      legend=dict(orientation="h", y=1.12))
+                      yaxis_title="Consum [L/100 km]")
     # Etichetele ciclurilor (ex. "Real urban (Constanța)") sunt lungi și se
-    # suprapun dacă rămân orizontale — le înclinăm și mărim marginea de jos
-    # ca să încapă complet, fără să se calce una pe alta.
-    fig.update_layout(xaxis=dict(tickangle=-25),
-                      margin=dict(l=50, r=20, t=50, b=80))
-    return _grid(fig)
+    # suprapun dacă rămân orizontale — le înclinăm.
+    fig.update_layout(xaxis=dict(tickangle=-25))
+    # IMPORTANT: _grid() (mai jos) suprascrie necondiționat legenda și
+    # marginile figurii (le fixează SUB grafic, y=-0.16) — de-aia orice
+    # setare de legendă/margine făcută ÎNAINTE de _grid() era complet
+    # ignorată (bug găsit prin verificare directă a fig.layout după
+    # construcție). De-aia aplicăm _grid() ÎNTÂI, apoi suprascriem explicit
+    # legenda ca să stea DEASUPRA graficului (yanchor="bottom" fixează
+    # marginea de jos a legendei, nu centrul ei, ca să nu alunece spre
+    # etichetele înclinate ale axei X) și mărim marginea de sus + înălțimea
+    # totală, ca titlul și legenda să aibă loc separat, fără suprapunere.
+    fig = _grid(fig)
+    fig.update_layout(
+        legend=dict(orientation="h", yanchor="bottom", y=1.08,
+                    xanchor="center", x=0.5),
+        margin=dict(l=50, r=20, t=70, b=90),
+        height=480)
+    return fig
 
 
 def plot_tco_breakdown(tco_data: dict[str, dict]) -> go.Figure:
@@ -463,9 +475,15 @@ def plot_cycle_live(r: SimulationResult, speed_kmh: np.ndarray,
         height=640,
         title=dict(text=title, x=0.01, y=0.98,
                    font=dict(size=15, color=th["font"])),
-        legend=dict(orientation="h", y=-0.40, x=0.5, xanchor="center",
-                    font=dict(size=10)),
-        margin=dict(l=55, r=24, t=64, b=170),
+        # Legenda era poziționată explicit SUB grafic (y=-0.40), suprapusă
+        # cu eticheta axei X ("Timp [s]") — mutată deasupra graficului, sub
+        # titlu, ancorată de marginea ei de SUS (yanchor="top") la y=0.93,
+        # adică între titlu (y=0.98) și marginea de sus a zonei de plotare
+        # (~0.86, dată de margin.t=92 din înălțimea totală de 640px) — nu
+        # se suprapune nici cu titlul, nici cu graficul de dedesubt.
+        legend=dict(orientation="h", yanchor="top", y=0.93, x=0.5,
+                    xanchor="center", font=dict(size=10)),
+        margin=dict(l=55, r=24, t=92, b=170),
         updatemenus=[dict(
             type="buttons", direction="left",
             x=0.99, y=1.10, xanchor="right", yanchor="top",

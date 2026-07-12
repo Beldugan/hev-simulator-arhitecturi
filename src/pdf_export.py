@@ -56,6 +56,7 @@ _IOS_MPL = {
 matplotlib.rcParams.update(_IOS_MPL)
 
 from reportlab.lib import colors
+from reportlab.lib.utils import ImageReader
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
@@ -156,21 +157,51 @@ def _watermark(cv, doc) -> None:
 
 def _watermark_first(cv, doc) -> None:
     """Prima pagină: subsol + logo AR semitransparent, poziționat sub blocul de
-    titlu (centrat-dreapta) ca să nu se suprapună cu textul."""
+    titlu (centrat-dreapta) ca să nu se suprapună cu textul. Sub logo-ul AR,
+    la aceeași dimensiune, este desenat și logo-ul aplicației (simulatorul
+    hibrid) — titlul/subtitlul de pe prima pagină folosesc un rightIndent
+    care rezervă spațiu orizontal pe toată înălțimea coloanei de text,
+    exact ca să nu se suprapună cu cele DOUĂ logo-uri stivuite."""
     _watermark(cv, doc)
     W, H = A4
-    logo = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "..", "assets", "logo_ar_50.png")
-    if os.path.exists(logo):
-        size = 3.0 * cm
+    size = 3.0 * cm
+    gap = 0.2 * cm
+    assets_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "..", "assets")
+    logo_ar = os.path.join(assets_dir, "logo_ar_50.png")
+    logo_x = W - 1.8 * cm - size
+    logo_ar_y = H - 1.7 * cm - size
+    if os.path.exists(logo_ar):
         try:
             # colț dreapta-sus, dar coborât sub titlu (titlul e indentat la stânga)
-            cv.drawImage(logo, W - 1.8 * cm - size, H - 1.7 * cm - size,
+            cv.drawImage(logo_ar, logo_x, logo_ar_y,
                          width=size, height=size, mask="auto",
                          preserveAspectRatio=True)
         except Exception as e:
             # Nefatal: raportul se generează în continuare fără logo pe prima pagină.
-            logger.warning("Nu s-a putut desena logo-ul pe prima pagină (%s).", e)
+            logger.warning("Nu s-a putut desena logo-ul AR pe prima pagină (%s).", e)
+    logo_hybrid = os.path.join(assets_dir, "logo_hybrid.png")
+    if os.path.exists(logo_hybrid):
+        try:
+            # Logo-ul aplicației e lat (nu pătrat, ca cel AR) — dacă îl
+            # forțăm într-o cutie pătrată size×size cu preserveAspectRatio,
+            # ReportLab îl „letterbox-uiește" (îl scalează după LĂȚIME și
+            # lasă spațiu gol deasupra/dedesubt, în cutie), rezultând un
+            # gol mult mai mare decât `gap`-ul dorit — verificat direct în
+            # PDF-ul generat, cu pdfplumber, prin măsurarea poziției reale
+            # a imaginii. Soluție: calculăm înălțimea reală din raportul de
+            # aspect al fișierului (lățime = size, ca la logo-ul AR — deci
+            # „aceeași dimensiune" pe lățime — iar înălțimea rezultă din
+            # proporțiile logo-ului), și îl poziționăm noi înșine, exact
+            # `gap` sub logo-ul AR, fără cutie irosită.
+            iw, ih = ImageReader(logo_hybrid).getSize()
+            h_hybrid = size * ih / iw
+            cv.drawImage(logo_hybrid, logo_x, logo_ar_y - gap - h_hybrid,
+                         width=size, height=h_hybrid, mask="auto",
+                         preserveAspectRatio=True)
+        except Exception as e:
+            logger.warning(
+                "Nu s-a putut desena logo-ul aplicației pe prima pagină (%s).", e)
 
 
 # ======================================================================
@@ -191,6 +222,11 @@ def _styles():
                           keepWithNext=True))
     ss.add(ParagraphStyle("Bodyx", parent=ss["BodyText"], fontName=_FONT_MAIN,
                           fontSize=9.5, leading=13.5, alignment=4))  # justify
+    # Variantă cu rezervă de spațiu în dreapta — folosită DOAR pentru
+    # paragraful introductiv de pe prima pagină, care altfel s-ar întinde
+    # pe sub cele două logo-uri stivuite (AR + aplicație) din colțul
+    # dreapta-sus al primei pagini.
+    ss.add(ParagraphStyle("Bodyx_p1", parent=ss["Bodyx"], rightIndent=3.6 * cm))
     ss.add(ParagraphStyle("Metax", parent=ss["BodyText"], fontName=_FONT_MAIN,
                           fontSize=8, textColor=IOS_GRAY, rightIndent=3.6 * cm))
     return ss
@@ -720,7 +756,7 @@ def generate_pdf_report(
         "Acest raport a fost generat automat de aplicația open-source asociată lucrării "
         "de disertație <i>«Analiza comparativă a configurațiilor de propulsie hibridă "
         "(serie, paralel, serie-paralel) pentru un vehicul de clasă C-SUV»</i> — "
-        "A.M. Beldugan, FIMIM, Universitatea Ovidius din Constanța, 2026.", ss["Bodyx"]))
+        "A.M. Beldugan, FIMIM, Universitatea Ovidius din Constanța, 2026.", ss["Bodyx_p1"]))
 
     # ---- 1. Parametrii de intrare ----
     story.append(Paragraph("1. Parametrii de intrare", ss["H2x"]))
