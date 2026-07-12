@@ -193,7 +193,7 @@ def main() -> None:
                 if len(hit):
                     break
         # 2c. dezambiguizare pe putere: păstrează înregistrările cu ep în
-        #     ±20% din puterea MCI sau din puterea de sistem (MCI+EM)
+        #     ±20% din puterea MAI sau din puterea de sistem (MAI+EM)
         if len(hit):
             p_ice = float(v["P_ICE_max_kW"])
             p_sys = p_ice + float(v["P_EM_max_kW"])
@@ -236,7 +236,7 @@ def main() -> None:
     n_miss = rep["status"].str.startswith("NEGĂSIT").sum()
     print(f"\nRaport: {args.out}")
     print(f"  OK: {n_ok} · De verificat: {len(rep)-n_ok-n_miss} · Negăsite: {n_miss}")
-    print("Notă: puterea EEA (ep) este adesea puterea sistemului sau doar a MCI,")
+    print("Notă: puterea EEA (ep) este adesea puterea sistemului sau doar a MAI,")
     print("în funcție de constructor — tratați abaterile de putere orientativ.")
 
 

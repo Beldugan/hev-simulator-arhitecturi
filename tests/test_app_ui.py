@@ -67,7 +67,7 @@ class TestPopoversRenderWithoutErrors(unittest.TestCase):
         fiecare tip din baza de date (HEV, PHEV, MHEV)."""
         cases = [
             ("Toyota", "Yaris", "1.5 Hybrid 116", "HEV", "Hibrid complet"),
-            ("Toyota", "C-HR", "2.0 PHEV 223", "PHEV", "NU corespund modului normal"),
+            ("Toyota", "C-HR", "2.0 PHEV 223", "PHEV", "nu corespund regimului uzual"),
             ("Ford", "Puma", "1.0 EcoBoost mHEV 125", "MHEV", "Electrificare ușoară"),
         ]
         for marca, model, varianta, tip, expected_snippet in cases:
