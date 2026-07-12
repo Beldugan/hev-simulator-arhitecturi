@@ -184,32 +184,49 @@ st.markdown("""
        cele două grafice, indiferent de starea barei laterale. */
     .chart-hover-box { max-width: min(1100px, 96vw); }
 
-    /* Streamlit rezervă automat un spațiu vertical ("gap" de flexbox)
-       între FIECARE element din coloană/bara laterală, chiar și atunci
-       când elementul respectiv e invizibil (display:none) sau scos din
-       flux (position:fixed) — golul rămâne, pentru că el aparține
-       containerului care-l înfășoară, nu elementului ascuns propriu-zis.
-       Aici sunt marcajele invizibile (.anchor-*-q) și box-urile de hover
-       (*-hover-box), fiecare într-un container Streamlit dedicat: le
-       scoatem complet din calculul de layout cu display:contents — copilul
-       lor poziționat fix tot funcționează normal la hover, dar containerul
-       nu mai "numără" ca element vizibil între widget-urile din jur. */
-    div[data-testid="stElementContainer"]:has(div.strategy-hover-box),
-    div[data-testid="stElementContainer"]:has(div.vehicle-hover-box),
-    div[data-testid="stElementContainer"]:has(div.menu-hover-box),
-    div[data-testid="stElementContainer"]:has(div.obd-hover-box),
-    div[data-testid="stElementContainer"]:has(div.cycle-hover-box),
-    div[data-testid="stElementContainer"]:has(div.chart-hover-box),
-    div[data-testid="stElementContainer"]:has(div.anchor-variant-q),
-    div[data-testid="stElementContainer"]:has(div.anchor-obd-upload-q),
-    div[data-testid="stElementContainer"]:has(div.anchor-cycle-q),
-    div[data-testid="stElementContainer"]:has(div.anchor-cons-chart-q),
-    div[data-testid="stElementContainer"]:has(div.anchor-soc-chart-q),
-    div[data-testid="stElementContainer"]:has(div.anchor-live-q),
-    div[data-testid="stElementContainer"]:has(div.anchor-power-q),
-    div[data-testid="stElementContainer"]:has(div.anchor-bsfc-q),
-    div[data-testid="stElementContainer"]:has(div.anchor-tco-q) {
-        display: contents !important;
+    /* Streamlit rezervă automat un spațiu vertical ("gap" de flexbox,
+       16px) între FIECARE element dintr-o coloană/bara laterală. Verificat
+       LIVE, pe aplicația publicată: display:contents NU elimină acest gap
+       — Chrome tot inserează cate un gap complet în jurul fiecărui
+       container, chiar dacă el nu generează nicio cutie vizibilă — și,
+       fiind display:contents, containerul nici nu mai poate primi margin
+       (o cutie inexistentă nu poate avea margine), deci acea variantă de
+       reparație a fost abandonată. Soluția verificată funcțional: lăsăm
+       containerul ca o cutie normală, de înălțime 0 (copilul lui e oricum
+       fie display:none, fie position:fixed — nu contribuie la înălțime),
+       și anulăm exact gap-ul din jurul lui cu margine negativă simetrică
+       (-0.5rem sus/jos = -8px + -8px = -16px per container). Matematic,
+       pentru N containere-fantomă la rând între două elemente reale:
+       (N+1) goluri de 16px − N containere × 16px anulați = exact 16px
+       rămași, adică un singur gol normal, indiferent câte containere sunt
+       înlănțuite (1, ca la Variantă, sau 5, ca la Meniu). Selectorul de
+       atribut e dublat intenționat (`[data-testid=...][data-testid=...]`)
+       ca să crească specificitatea peste regula originală — Streamlit
+       reinserează periodic propriul <style> mai jos în <head>, iar la
+       specificitate egală ultima regulă din DOM câștigă indiferent care
+       a fost scrisă prima; fără acest boost, propriul <style> al
+       aplicației redevenea câștigător la fiecare rerun și anula fix-ul. */
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.strategy-hover-box),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.vehicle-hover-box),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.menu-hover-box),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.obd-hover-box),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.cycle-hover-box),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.chart-hover-box),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-variant-q),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-obd-upload-q),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-cycle-q),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-cons-chart-q),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-soc-chart-q),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-live-q),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-power-q),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-bsfc-q),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-tco-q) {
+        display: block !important;
+        margin: -0.5rem 0 !important;
+        padding: 0 !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        overflow: visible !important;
     }
 
     /* Strategia de management energetic: doar un singur dropdown poate fi
@@ -941,9 +958,17 @@ def page_simulare():
     # ca Streamlit să poată determina corect direcția săgeții: în jos pentru
     # scădere (verde, e un lucru bun aici), în sus pentru creștere (roșu).
     pct_vs_ref = (opt_wltc - base_wltc) / base_wltc * 100
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Consum de combustibil înregistrat de arhitectura de "
-             "referință WLTC [L/100km]", f"{base_wltc:.2f}")
+    # Layout pe 2 coloane (nu 3): "Strategie" a fost mutat sub cardul de
+    # consum referință, în aceeași coloană — ca și card SEPARAT, nu
+    # fuzionat — pentru că, înghesuit într-o a treia coloană îngustă,
+    # textul strategiei ("Strategie bazată pe reguli" etc.) se trunchia
+    # vizual cu puncte de suspensie. Pe o coloană de lățime dublă (1/2 în
+    # loc de 1/3), cardul are destul spațiu să afișeze eticheta întreagă.
+    c1, c2 = st.columns(2)
+    with c1:
+        st.metric("Consum de combustibil înregistrat de arhitectura de "
+                 "referință WLTC [L/100km]", f"{base_wltc:.2f}")
+        st.metric("Strategie", STRATEGY_LABELS[strat_used].split(" (")[0])
     # "Configurația optimă" și "Consumul înregistrat WLTC" sunt fuzionate
     # într-un singur card (altfel două st.metric() consecutive în aceeași
     # coloană produc două cutii albe separate, suprapuse vizual). Săgeata
@@ -969,7 +994,6 @@ def page_simulare():
         f'font-weight:600;font-size:.85rem;padding:2px 9px;'
         f'border-radius:8px;">{delta_arrow} {abs(pct_vs_ref):.1f}%</div>'
         f'</div></div></div>', unsafe_allow_html=True)
-    c3.metric("Strategie", STRATEGY_LABELS[strat_used].split(" (")[0])
 
     rows = []
     for arch in ARCHITECTURES:

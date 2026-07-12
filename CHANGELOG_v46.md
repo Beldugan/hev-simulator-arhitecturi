@@ -55,3 +55,45 @@
 - Audit de auto-consistență marker/regulă CSS/clasă țintă pentru toate cele 9 box-uri noi de hover (perechi unice confirmate prin grep).
 - Notă onestă: spre deosebire de v43–v45, box-urile noi de hover din acest batch NU au fost verificate live într-un browser real (Chrome DevTools) pe aplicația deployată, deoarece site-ul live nu reflectă încă aceste modificări și volumul de schimbări a depășit timpul disponibil pentru reproducere sintetică completă. Tehnica CSS de hover în sine a fost însă validată live, repetat, în rundele anterioare din această sesiune.
 - Segfault-ul cunoscut la `AppTest` pentru "Rulează simularea" este o limitare preexistentă a mediului sandbox (reprodusă identic și pe versiunea v43 nemodificată), nu o regresie introdusă în acest batch.
+
+---
+
+# CHANGELOG v47 (adăugiri peste v46)
+
+## 1. Fuzionare carduri "Configurația optimă" / "Consumul înregistrat WLTC"
+- Cele două `st.metric()` din a doua coloană produceau două cutii albe separate, suprapuse vizual. Înlocuite cu un singur card HTML custom, cu ambele informații în interior (etichetă+valoare pentru configurație, apoi o linie despărțitoare subțire, apoi etichetă+valoare+pastilă de variație procentuală).
+- Cardul reutilizează exact hook-urile CSS existente (`data-testid="stMetric"` / `data-testid="stMetricValue"`) ca să rămână identic vizual cu restul cardurilor și compatibil automat cu tema întunecată (fără culori de text hardcodate care s-ar fi pierdut în modul dark).
+- Pastila de variație procentuală (verde+săgeată jos pentru scădere reală, roșu+săgeată sus pentru creștere reală) e construită manual din numărul semnat real, păstrând exact aceeași semantică `delta_color="inverse"` stabilită anterior.
+
+## 2. Eliminare spațiu gol în bara laterală (între Strategie și Parametrii vehiculului)
+- Cauza reală: fiecare box de hover și fiecare marcaj invizibil (`.anchor-*-q`) este randat de Streamlit într-un container propriu, iar Streamlit aplică un "gap" de layout între containere indiferent dacă interiorul lor e vizibil (display:none) sau poziționat fix — de-aia cele 3 box-uri de explicație ale strategiilor lăsau un gol vizibil deasupra "Parametrii vehiculului", deși ele nu se văd niciodată acolo.
+- Fix: toate containerele care înfășoară exclusiv un asemenea marcaj/box invizibil au fost scoase complet din calculul de layout cu `display:contents`, tehnică ce nu afectează deloc funcționarea hover-urilor (elementele poziționate fix ies oricum din flux) și nu strică regulile CSS bazate pe frați (`+`/`~`), care depind de structura DOM, nu de randare.
+- Aceeași corecție elimină golurile similare de sub toate celelalte 8 marcaje/box-uri de hover din aplicație (Variantă, OBD, Ciclu, cele 2 grafice de consum/SoC, redare live, putere/BSFC, TCO), nu doar cazul semnalat explicit.
+
+## 3. Sweep final MCI → MAI
+- Ultimele 2 apariții rămase (comentarii interne în `tools/verify_eea.py`, instrument de verificare tehnică, neafișat în UI) au fost și ele înlocuite, la cererea explicită de a acoperi absolut toate aparițiile din cod. Confirmat prin grep: zero apariții „MCI" în tot repository-ul.
+
+## Verificare
+- `py_compile` pe toate fișierele modificate — OK.
+- Suită completă de teste: `60 passed, 3 subtests passed`.
+- `grep -rn "MCI"` pe tot proiectul — niciun rezultat.
+
+## 4. Suprapunere box explicativ peste graficele de consum/SoC (la retragerea meniului)
+- Cauza reală: `.chart-hover-box` (folosit de box-urile de la "Consum pe arhitecturi și cicluri" și "Evoluția SoC") se centrează la 50% din LĂȚIMEA FERESTREI, nu din conținutul principal. Cele două grafice stau unul lângă altul, în două coloane. Cu bara laterală deschisă, cele două coloane sunt împinse spre dreapta și centrul ferestrei cade în afara lor — dar la retragerea barei laterale, conținutul principal ocupă toată fereastra, iar centrul acesteia ajunge exact pe granița dintre cele două coloane; boxul, fiind mai îngust decât rândul întreg, acoperea doar parțial fiecare grafic, lăsând marginile lor vizibile în jurul lui (exact suprapunerea din captura primită).
+- Fix: `.chart-hover-box` a fost lățit (de la 560px la ~1100px/96vw) ca să acopere mereu, complet, tot rândul cu cele două grafice, indiferent de starea barei laterale — nu mai rămân porțiuni de grafic vizibile pe lângă box.
+
+## 4. Rescriere academică a textelor din aplicație
+La cerere, toate textele explicative din aplicație (descrierile celor 3 strategii EMS, descrierea vehiculului/tipului de electrificare din boxul „Variantă", cele 5 descrieri din meniul de navigare, caption-ul de upload OBD-II și mesajele de succes/avertizare aferente, descrierea ciclului selectat, interpretările celor 6 grafice — consum, SoC, redare live, putere, BSFC, TCO —, secțiunile Sensibilitate/Comparație A-B/Validare/Export PDF și mesajele lor) au fost rescrise într-un registru academic, impersonal, adecvat unei lucrări de disertație sau unui articol științific (construcții de tipul „Figura ilustrează...", „Reprezentarea permite identificarea...", evitând formulările colocviale de tip „arată", „ca să se vadă dintr-o privire", persoana a II-a).
+
+Etichetele scurte, funcționale ale interfeței — nume de butoane, opțiuni de dropdown, capete de coloană cu unități de măsură, denumiri de pagini din meniu — au fost păstrate concise, conform convenției standard pentru tabele și formulare într-o lucrare științifică (transformarea lor în propoziții complete ar fi afectat lizibilitatea interfeței). Titlurile de secțiune au fost, acolo unde a fost cazul, ușor reformulate într-un registru mai formal.
+
+Textul din boxul de interpretare a graficului de consum a fost înlocuit cu formularea exactă furnizată.
+
+S-a corectat și un test din suita existentă (`test_vehicle_popover_all_types`) care verifica un fragment literal din vechiul text al notei PHEV, actualizat să reflecte noua formulare academică.
+
+## 5. Verificare finală MCI → MAI
+Confirmat, printr-o nouă căutare exhaustivă, că nu mai există nicio apariție a acronimului „MCI" în tot codul sursă (app.py, src/, tools/).
+
+## Verificare
+- `py_compile` pe toate fișierele — OK.
+- Suită completă de teste: `60 passed, 3 subtests passed`.
