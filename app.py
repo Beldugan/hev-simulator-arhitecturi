@@ -131,8 +131,13 @@ st.markdown("""
         overflow: hidden; background: #fff;
     }
 
-    /* Selectbox principale */
-    div[data-baseweb="select"] > div { border-radius: 10px; }
+    /* Selectbox principale (inclusiv cele din conținutul principal, nu
+       doar din bara laterală — fără acest fundal alb explicit, casetele se
+       confundă vizual cu fundalul gri-deschis al paginii). */
+    div[data-baseweb="select"] > div {
+        background: #FFFFFF; border-radius: 10px;
+        border: 0.5px solid rgba(60,60,67,.15);
+    }
 
     /* Alerte info/succes — stil iOS banner */
     div[data-testid="stAlert"] { border-radius: 12px; border: none; }
@@ -925,7 +930,7 @@ with st.sidebar:
 
     run_btn = st.button("Rulează simularea", type="primary", use_container_width=True)
 
-    st.markdown("## Meniu")
+    st.markdown("## Selectează secțiunea")
     st.session_state.active_page = st.selectbox(
         "Meniu", PAGES,
         index=PAGES.index(st.session_state.get("active_page", PAGES[0])),
