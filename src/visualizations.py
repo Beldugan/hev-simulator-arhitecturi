@@ -104,9 +104,12 @@ def plot_soc_trajectory(results: dict[str, SimulationResult],
     fig.add_hline(y=p.SoC_min * 100, line_dash="dot", line_color=COLORS["danger"],
                   annotation_text=f"Min {p.SoC_min*100:.0f}%")
     fig.update_layout(**_LAYOUT_BASE, title="Evoluția stării de încărcare (SoC)",
-                      xaxis_title="Timp [s]", yaxis_title="SoC [%]",
-                      legend=dict(orientation="h", y=1.12))
-    return _grid(fig)
+                      xaxis_title="Timp [s]", yaxis_title="SoC [%]")
+    fig = _grid(fig)
+    fig.update_layout(
+        legend=dict(orientation="h", yanchor="top", y=1.17, xanchor="center", x=0.5),
+        margin=dict(l=55, r=24, t=90, b=88))
+    return fig
 
 
 def plot_power_profile(r: SimulationResult, cycle_kmh: np.ndarray) -> go.Figure:
@@ -172,9 +175,12 @@ def plot_bsfc_map(p: VehicleParams, r: SimulationResult | None = None) -> go.Fig
     fig.update_layout(**_LAYOUT_BASE,
                       title=dict(text="Harta consumului specific (BSFC)",
                                  font=dict(size=15)),
-                      xaxis_title="Putere motor [kW]", yaxis_title="BSFC [g/kWh]",
-                      legend=dict(orientation="h", y=1.12))
-    return _grid(fig)
+                      xaxis_title="Putere motor [kW]", yaxis_title="BSFC [g/kWh]")
+    fig = _grid(fig)
+    fig.update_layout(
+        legend=dict(orientation="h", yanchor="top", y=1.17, xanchor="center", x=0.5),
+        margin=dict(l=55, r=24, t=90, b=88))
+    return fig
 
 
 def plot_consumption_bars(data: dict[str, dict[str, float]],
@@ -207,9 +213,9 @@ def plot_consumption_bars(data: dict[str, dict[str, float]],
     # totală, ca titlul și legenda să aibă loc separat, fără suprapunere.
     fig = _grid(fig)
     fig.update_layout(
-        legend=dict(orientation="h", yanchor="bottom", y=1.08,
+        legend=dict(orientation="h", yanchor="top", y=1.17,
                     xanchor="center", x=0.5),
-        margin=dict(l=50, r=20, t=70, b=90),
+        margin=dict(l=50, r=20, t=90, b=90),
         height=480)
     return fig
 
@@ -237,8 +243,12 @@ def plot_tco_breakdown(tco_data: dict[str, dict]) -> go.Figure:
                            showarrow=False, font=dict(size=12))
     fig.update_layout(**_LAYOUT_BASE, barmode="relative",
                       title="Defalcarea costului total de proprietate (10 ani)",
-                      yaxis_title="EUR", legend=dict(orientation="h", y=1.12))
-    return _grid(fig)
+                      yaxis_title="EUR")
+    fig = _grid(fig)
+    fig.update_layout(
+        legend=dict(orientation="h", yanchor="top", y=1.17, xanchor="center", x=0.5),
+        margin=dict(l=55, r=24, t=90, b=88))
+    return fig
 
 
 def plot_sensitivity_tornado(results: list[dict], baseline_value: float,
@@ -260,8 +270,12 @@ def plot_sensitivity_tornado(results: list[dict], baseline_value: float,
                       title=f"Analiza de sensibilitate — {metric_label} "
                             f"(referință: {baseline_value:,.0f})".replace(",", " "),
                       xaxis_title=f"Variația {metric_label} față de referință",
-                      legend=dict(orientation="h", y=1.1), height=420)
-    return _grid(fig)
+                      height=420)
+    fig = _grid(fig)
+    fig.update_layout(
+        legend=dict(orientation="h", yanchor="top", y=1.17, xanchor="center", x=0.5),
+        margin=dict(l=55, r=24, t=90, b=88))
+    return fig
 
 
 def plot_vehicle_comparison(res_a: dict, res_b: dict,
@@ -280,9 +294,12 @@ def plot_vehicle_comparison(res_a: dict, res_b: dict,
                              showlegend=(i == 1), name=name_b,
                              text=[f"{vb:.2f}"], textposition="outside"), row=1, col=i)
     fig.update_layout(**_LAYOUT_BASE, height=380,
-                      title="Comparație vehicul A vs vehicul B",
-                      legend=dict(orientation="h", y=1.18))
-    return _grid(fig)
+                      title="Comparație vehicul A vs vehicul B")
+    fig = _grid(fig)
+    fig.update_layout(
+        legend=dict(orientation="h", yanchor="top", y=1.22, xanchor="center", x=0.5),
+        margin=dict(l=55, r=24, t=95, b=88))
+    return fig
 
 
 # ======================================================================
