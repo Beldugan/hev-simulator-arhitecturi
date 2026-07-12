@@ -151,12 +151,21 @@ st.markdown("""
     /* Separatoare fine */
     hr { border: none; border-top: 0.5px solid rgba(60,60,67,.18); }
 
-    /* Strategie/vehicul/meniu/OBD apar DOAR la interacțiune (hover), fără
-       niciun buton „?" — poziționate FIX pe ecran (position:fixed), pentru
-       că trăiesc într-o bară laterală scurtă, unde riscul de suprapunere
-       cu alt conținut aflat mai jos pe pagină, la un scroll diferit, e
-       neglijabil (verificat live, funcționează corect). */
-    .strategy-hover-box, .vehicle-hover-box, .menu-hover-box, .obd-hover-box {
+    /* TOATE casetele de interpretare (strategie/vehicul/meniu/OBD/ciclu/
+       toate graficele) apar DOAR la interacțiune (hover), fără niciun
+       buton „?", poziționate FIX pe ecran (position:fixed), centrate,
+       cu înălțime maximă limitată (70vh) și scroll intern dacă textul e
+       lung — ca să fie GARANTAT complet vizibile, indiferent de ce
+       anume acoperă din pagină, de scroll-ul curent sau de înălțimea
+       ferestrei. Nu se mai calculează poziții relative la grafic/rând/
+       coloană — s-a renunțat intenționat la acele variante (ancorare pe
+       rândul cu 2 coloane, poziționare laterală, flux normal sub
+       grafic), fiindcă fiecare introducea propriul caz limită în care
+       boxul ieșea parțial din ecran pe anumite dimensiuni de fereastră.
+       Poziția fixă, centrată, e varianta verificată funcțional care
+       garantează vizibilitatea completă în toate cazurile. */
+    .strategy-hover-box, .vehicle-hover-box, .menu-hover-box, .obd-hover-box,
+    .cycle-hover-box, .chart-hover-box {
         display: none;
         position: fixed;
         top: 16vh;
@@ -171,95 +180,16 @@ st.markdown("""
     }
     .strategy-hover-box { background: #EAF2FF; border: 1px solid #CFE3FF; }
     .vehicle-hover-box, .menu-hover-box, .obd-hover-box { background: #EAF9EF; border: 1px solid #BEE8CC; }
-
-    /* .cycle-hover-box și .chart-hover-box trăiesc pe o pagină LUNGĂ, cu
-       mai multe grafice răsfirate pe verticală (consum, SoC, redare live,
-       putere, BSFC, TCO). Cu position:fixed (varianta inițială), oricare
-       dintre ele apărea mereu la ACEEAȘI poziție din FEREASTRĂ — nu din
-       PAGINĂ — deci dacă utilizatorul derula pagina și apoi trecea
-       cursorul peste un titlu de grafic aflat sus, box-ul apărea exact
-       acolo unde se întâmpla să fie derulată pagina în acel moment,
-       suprapunându-se peste orice grafic era vizibil atunci (verificat
-       direct pe aplicația publicată: box-ul de la SoC apărea peste
-       graficul de redare live, aflat mult mai jos pe pagină). Soluție:
-       position:absolute, relativ la propriul container din pagină (care
-       scrolează normal, împreună cu restul conținutului) — pentru
-       consum/SoC, ancora este rândul cu cele 2 coloane
-       (stHorizontalBlock, făcut position:relative mai jos), ca boxul să
-       rămână centrat pe tot rândul, nu doar pe o singură coloană îngustă;
-       pentru celelalte (ciclu, redare live, putere, BSFC, TCO), ancora e
-       chiar containerul individual al fiecărui marcaj/box (deja făcut
-       position:relative prin aceeași regulă de mai jos care le colapsează
-       la înălțime 0). */
     .cycle-hover-box, .chart-hover-box {
-        display: none;
-        position: absolute;
-        top: 40px;
-        left: 50%;
-        transform: translateX(-50%);
-        max-width: min(560px, 92vw);
-        max-height: 70vh;
-        overflow-y: auto;
-        border-radius: 10px;
-        padding: 16px 18px;
-        z-index: 9999;
         background: #FFFFFF; border: 1px solid rgba(60,60,67,.18);
         box-shadow: 0 8px 28px rgba(0,0,0,.14);
     }
-    div[data-testid="stHorizontalBlock"] { position: relative; }
     /* Interpretările pentru graficele tip tornado (analiza de
        sensibilitate) au fundal verde (stil identic cu
        .vehicle-hover-box/.menu-hover-box), pentru a semnala vizual că
        explică o convenție de citire a graficului, nu o interpretare
        directă a rezultatelor. */
     .chart-hover-box.chart-hover-sens { background: #EAF9EF; border: 1px solid #BEE8CC; }
-
-    /* Consum/SoC și analiza de sensibilitate (Consum/TCO) stau în perechi,
-       pe câte 2 coloane. Poziționarea inițială (centrată pe tot rândul,
-       DEASUPRA graficului) făcea boxul să înceapă foarte jos față de
-       vârful conținutului paginii pe ferestre mai puțin înalte, ieșind
-       din zona vizibilă / suprapunându-se peste conținutul de SUB rând
-       (expanderele următoare), iar utilizatorul nu putea vedea simultan
-       graficul și textul integral al explicației. Soluție: fiecare box e
-       ancorat acum la PROPRIUL grafic (nu la tot rândul) și apare ÎN
-       LATERALUL acestuia — la dreapta pentru graficul din coloana stângă,
-       la stânga pentru cel din coloana dreaptă — aliniat pe verticală cu
-       vârful graficului, ca ambele (grafic + text integral) să rămână
-       vizibile simultan, indiferent de înălțimea ferestrei. */
-    /* NOTĂ TEHNICĂ: containerul individual (colapsat la înălțime 0) al
-       acestor box-uri capătă, empiric (verificat live), lățimea ÎNTREGULUI
-       rând cu 2 coloane, nu doar a propriei coloane — de-aia "left:100%"
-       ar sări cu mult peste marginea ferestrei. "50%"/"50%" din DREAPTA
-       cade exact pe granița dintre cele 2 coloane, indiferent de lățimea
-       reală a ferestrei, ceea ce oferă poziționarea corectă: boxul începe
-       chiar la granița dintre coloane și se extinde spre coloana
-       cealaltă — nu acoperă NICIODATĂ propriul grafic (pe care îl
-       explică), deși poate acoperi temporar graficul pereche cât timp
-       cursorul stă deasupra titlului. */
-    .chart-hover-cons, .chart-hover-sens-cons {
-        top: 8px; left: 50%; right: auto; transform: none;
-        margin-left: 10px; max-width: min(400px, 46vw);
-    }
-    .chart-hover-soc, .chart-hover-sens-tco {
-        top: 8px; left: auto; right: 50%; transform: none;
-        margin-right: 10px; max-width: min(400px, 46vw);
-    }
-
-    /* Redare live / Profil de putere / BSFC / TCO ocupă întreaga lățime a
-       coloanei principale — nu există spațiu liber în lateral unde să
-       apară boxul fără să iasă din zona vizibilă. Pentru acestea, boxul
-       NU se mai suprapune peste grafic (position:absolute), ci apare în
-       flux normal, IMEDIAT SUB grafic (position:static), împingând
-       conținutul următor în jos cât timp e afișat — astfel graficul
-       rămâne mereu complet vizibil, iar textul integral apare imediat
-       lângă cursor, fără a-l acoperi. */
-    .chart-hover-live, .chart-hover-power, .chart-hover-bsfc, .chart-hover-tco {
-        position: static;
-        top: auto; left: auto; right: auto; transform: none;
-        max-width: 100%;
-        margin: 10px 0 4px 0;
-        box-shadow: 0 2px 10px rgba(0,0,0,.10);
-    }
 
     /* Streamlit rezervă automat un spațiu vertical ("gap" de flexbox,
        16px) între FIECARE element dintr-o coloană/bara laterală. Verificat
@@ -292,6 +222,10 @@ st.markdown("""
     div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.chart-hover-soc),
     div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.chart-hover-sens-cons),
     div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.chart-hover-sens-tco),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.chart-hover-live),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.chart-hover-power),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.chart-hover-bsfc),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.chart-hover-tco),
     div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-variant-q),
     div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-obd-upload-q),
     div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-cycle-q),
@@ -309,20 +243,6 @@ st.markdown("""
         height: 0 !important;
         min-height: 0 !important;
         overflow: visible !important;
-    }
-
-    /* Ancoră de poziționare (position:relative) pentru boxurile care
-       încă folosesc position:absolute — fiecare pe propriul container
-       individual (nu pe tot rândul): ciclu, consum, SoC, cele 2 casete
-       verzi de la analiza de sensibilitate. Redare live/putere/BSFC/TCO
-       NU mai apar în listă — ele folosesc acum position:static (flux
-       normal, vezi mai sus), nu mai au nevoie de o ancoră relative. */
-    div[data-testid="stElementContainer"]:has(div.cycle-hover-box),
-    div[data-testid="stElementContainer"]:has(div.chart-hover-cons),
-    div[data-testid="stElementContainer"]:has(div.chart-hover-soc),
-    div[data-testid="stElementContainer"]:has(div.chart-hover-sens-cons),
-    div[data-testid="stElementContainer"]:has(div.chart-hover-sens-tco) {
-        position: relative !important;
     }
 
     /* Strategia de management energetic: doar un singur dropdown poate fi
