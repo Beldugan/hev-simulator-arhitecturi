@@ -207,19 +207,59 @@ st.markdown("""
         box-shadow: 0 8px 28px rgba(0,0,0,.14);
     }
     div[data-testid="stHorizontalBlock"] { position: relative; }
-    /* .chart-hover-box centrează la 50% din FEREASTRĂ (nu din conținutul
-       principal), iar "Consum pe arhitecturi și cicluri" și "Evoluția
-       SoC" stau unul lângă altul, în două coloane. Cât timp bara laterală
-       e deschisă, cele două coloane sunt împinse spre dreapta, iar
-       centrul ferestrei cade în afara graficelor — dar când bara
-       laterală se retrage, conținutul principal ocupă toată lățimea
-       ferestrei, centrul ferestrei ajunge chiar pe granița dintre cele
-       două coloane, iar boxul (mai îngust) acoperă doar parțial fiecare
-       grafic, lăsând marginile lor vizibile în jurul lui — de-aia
-       suprapunerea "apare" tocmai la retragerea meniului. Soluție: lățim
-       boxul suficient cât să acopere mereu, complet, întreg rândul cu
-       cele două grafice, indiferent de starea barei laterale. */
-    .chart-hover-box { max-width: min(1100px, 96vw); }
+    /* Interpretările pentru graficele tip tornado (analiza de
+       sensibilitate) au fundal verde (stil identic cu
+       .vehicle-hover-box/.menu-hover-box), pentru a semnala vizual că
+       explică o convenție de citire a graficului, nu o interpretare
+       directă a rezultatelor. */
+    .chart-hover-box.chart-hover-sens { background: #EAF9EF; border: 1px solid #BEE8CC; }
+
+    /* Consum/SoC și analiza de sensibilitate (Consum/TCO) stau în perechi,
+       pe câte 2 coloane. Poziționarea inițială (centrată pe tot rândul,
+       DEASUPRA graficului) făcea boxul să înceapă foarte jos față de
+       vârful conținutului paginii pe ferestre mai puțin înalte, ieșind
+       din zona vizibilă / suprapunându-se peste conținutul de SUB rând
+       (expanderele următoare), iar utilizatorul nu putea vedea simultan
+       graficul și textul integral al explicației. Soluție: fiecare box e
+       ancorat acum la PROPRIUL grafic (nu la tot rândul) și apare ÎN
+       LATERALUL acestuia — la dreapta pentru graficul din coloana stângă,
+       la stânga pentru cel din coloana dreaptă — aliniat pe verticală cu
+       vârful graficului, ca ambele (grafic + text integral) să rămână
+       vizibile simultan, indiferent de înălțimea ferestrei. */
+    /* NOTĂ TEHNICĂ: containerul individual (colapsat la înălțime 0) al
+       acestor box-uri capătă, empiric (verificat live), lățimea ÎNTREGULUI
+       rând cu 2 coloane, nu doar a propriei coloane — de-aia "left:100%"
+       ar sări cu mult peste marginea ferestrei. "50%"/"50%" din DREAPTA
+       cade exact pe granița dintre cele 2 coloane, indiferent de lățimea
+       reală a ferestrei, ceea ce oferă poziționarea corectă: boxul începe
+       chiar la granița dintre coloane și se extinde spre coloana
+       cealaltă — nu acoperă NICIODATĂ propriul grafic (pe care îl
+       explică), deși poate acoperi temporar graficul pereche cât timp
+       cursorul stă deasupra titlului. */
+    .chart-hover-cons, .chart-hover-sens-cons {
+        top: 8px; left: 50%; right: auto; transform: none;
+        margin-left: 10px; max-width: min(400px, 46vw);
+    }
+    .chart-hover-soc, .chart-hover-sens-tco {
+        top: 8px; left: auto; right: 50%; transform: none;
+        margin-right: 10px; max-width: min(400px, 46vw);
+    }
+
+    /* Redare live / Profil de putere / BSFC / TCO ocupă întreaga lățime a
+       coloanei principale — nu există spațiu liber în lateral unde să
+       apară boxul fără să iasă din zona vizibilă. Pentru acestea, boxul
+       NU se mai suprapune peste grafic (position:absolute), ci apare în
+       flux normal, IMEDIAT SUB grafic (position:static), împingând
+       conținutul următor în jos cât timp e afișat — astfel graficul
+       rămâne mereu complet vizibil, iar textul integral apare imediat
+       lângă cursor, fără a-l acoperi. */
+    .chart-hover-live, .chart-hover-power, .chart-hover-bsfc, .chart-hover-tco {
+        position: static;
+        top: auto; left: auto; right: auto; transform: none;
+        max-width: 100%;
+        margin: 10px 0 4px 0;
+        box-shadow: 0 2px 10px rgba(0,0,0,.10);
+    }
 
     /* Streamlit rezervă automat un spațiu vertical ("gap" de flexbox,
        16px) între FIECARE element dintr-o coloană/bara laterală. Verificat
@@ -248,7 +288,10 @@ st.markdown("""
     div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.menu-hover-box),
     div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.obd-hover-box),
     div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.cycle-hover-box),
-    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.chart-hover-box),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.chart-hover-cons),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.chart-hover-soc),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.chart-hover-sens-cons),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.chart-hover-sens-tco),
     div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-variant-q),
     div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-obd-upload-q),
     div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-cycle-q),
@@ -257,7 +300,9 @@ st.markdown("""
     div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-live-q),
     div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-power-q),
     div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-bsfc-q),
-    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-tco-q) {
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-tco-q),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-sens-cons-q),
+    div[data-testid="stElementContainer"][data-testid="stElementContainer"]:has(div.anchor-sens-tco-q) {
         display: block !important;
         margin: -0.5rem 0 !important;
         padding: 0 !important;
@@ -266,19 +311,17 @@ st.markdown("""
         overflow: visible !important;
     }
 
-    /* Ancoră de poziționare pentru .cycle-hover-box/.chart-hover-box
-       (position:absolute — vezi mai sus). Pentru consum/SoC (în cele 2
-       coloane) NU punem position:relative pe containerul lor individual
-       — vrem ca ele să se poziționeze relativ la ÎNTREG rândul cu cele 2
-       coloane (stHorizontalBlock, deja position:relative), nu doar la
-       propria coloană îngustă. Pentru ciclu/redare live/putere/BSFC/TCO
-       (cu layout pe o singură coloană), containerul individual e cea mai
-       apropiată ancoră utilă. */
+    /* Ancoră de poziționare (position:relative) pentru boxurile care
+       încă folosesc position:absolute — fiecare pe propriul container
+       individual (nu pe tot rândul): ciclu, consum, SoC, cele 2 casete
+       verzi de la analiza de sensibilitate. Redare live/putere/BSFC/TCO
+       NU mai apar în listă — ele folosesc acum position:static (flux
+       normal, vezi mai sus), nu mai au nevoie de o ancoră relative. */
     div[data-testid="stElementContainer"]:has(div.cycle-hover-box),
-    div[data-testid="stElementContainer"]:has(div.chart-hover-live),
-    div[data-testid="stElementContainer"]:has(div.chart-hover-power),
-    div[data-testid="stElementContainer"]:has(div.chart-hover-bsfc),
-    div[data-testid="stElementContainer"]:has(div.chart-hover-tco) {
+    div[data-testid="stElementContainer"]:has(div.chart-hover-cons),
+    div[data-testid="stElementContainer"]:has(div.chart-hover-soc),
+    div[data-testid="stElementContainer"]:has(div.chart-hover-sens-cons),
+    div[data-testid="stElementContainer"]:has(div.chart-hover-sens-tco) {
         position: relative !important;
     }
 
@@ -347,6 +390,16 @@ st.markdown("""
     div[data-testid="stElementContainer"]:has(div.anchor-soc-chart-q)
         + div[data-testid="stElementContainer"]:hover
         ~ div[data-testid="stElementContainer"] .chart-hover-soc {
+        display: block !important;
+    }
+    div[data-testid="stElementContainer"]:has(div.anchor-sens-cons-q)
+        + div[data-testid="stElementContainer"]:hover
+        ~ div[data-testid="stElementContainer"] .chart-hover-sens-cons {
+        display: block !important;
+    }
+    div[data-testid="stElementContainer"]:has(div.anchor-sens-tco-q)
+        + div[data-testid="stElementContainer"]:hover
+        ~ div[data-testid="stElementContainer"] .chart-hover-sens-tco {
         display: block !important;
     }
     div[data-testid="stElementContainer"]:has(div.anchor-live-q)
@@ -1178,15 +1231,10 @@ def page_simulare():
         b_l, b_r = st.columns([0.32, 0.68])
         spd_new = b_l.selectbox(
             "Viteza de derulare", _SPEEDS, index=_SPEEDS.index(spd_cur),
-            format_func=lambda v: "Redare: timp real (1×)" if v == 1 else f"Redare: {v}×",
-            help="Alegeți viteza de derulare a animației — de la timp real "
-                 "(1×) până la 30× mai rapid.")
+            format_func=lambda v: "Redare: timp real (1×)" if v == 1 else f"Redare: {v}×")
         if spd_new != spd_cur:
             st.session_state["live_speed"] = spd_new
             st.rerun()
-        b_r.caption(f"La viteza de derulare selectată, animarea completă "
-                    f"durează aproximativ {cs['duration_s'] // max(1, spd_cur)} s "
-                    f"(durata reală a ciclului: {cs['duration_s']} s).")
         # Explicația comenzilor apare doar la trecerea cursorului peste
         # grafic (fără text mereu vizibil sub el) — vezi .anchor-live-q.
         st.markdown('<div class="anchor-live-q"></div>', unsafe_allow_html=True)
@@ -1406,13 +1454,63 @@ def page_sensibilitate():
         sens = st.session_state["sens"]
         colL, colR = st.columns(2)
         with colL:
+            # Explicația convenției de citire a culorilor (vezi mai jos)
+            # apare la trecerea cursorului peste grafic — aceeași tehnică
+            # de marcaj invizibil + reguli CSS ca la graficele de consum/SoC,
+            # dar cu fundal verde (.chart-hover-sens).
+            st.markdown('<div class="anchor-sens-cons-q"></div>',
+                        unsafe_allow_html=True)
             st.plotly_chart(plot_sensitivity_tornado(
                 sens["consumption"], sens["base_consumption"],
                 "Consum [L/100km]"), use_container_width=True)
+            st.markdown(
+                '<div class="chart-hover-box chart-hover-sens '
+                'chart-hover-sens-cons">Codul cromatic indică sensul '
+                'variației parametrului analizat, nu o poziție fixă față '
+                'de axa centrală: bara albastră corespunde reducerii '
+                'parametrului cu 20% față de valoarea de referință, iar '
+                'bara portocalie corespunde creșterii acestuia cu 20%. '
+                'Direcția în care se extinde fiecare bară reflectă relația '
+                'fizică dintre parametrul respectiv și consumul de '
+                'combustibil. Pentru parametrii aflați în relație directă '
+                'cu consumul (masă, arie frontală, coeficient aerodinamic, '
+                'rezistență la rulare), creșterea parametrului determină '
+                'creșterea consumului, astfel încât bara portocalie '
+                '(+20%) se extinde spre dreapta, iar cea albastră (−20%) '
+                'spre stânga. Pentru randamentele funcționale (randamentul '
+                'termic al motorului, randamentul transmisiei), relația '
+                'este inversă — o creștere a randamentului reduce '
+                'consumul —, motiv pentru care, la aceste rânduri, bara '
+                'portocalie apare spre stânga, iar cea albastră spre '
+                'dreapta, reflectând corect comportamentul fizic al '
+                'sistemului.</div>', unsafe_allow_html=True)
         with colR:
+            st.markdown('<div class="anchor-sens-tco-q"></div>',
+                        unsafe_allow_html=True)
             st.plotly_chart(plot_sensitivity_tornado(
                 sens["tco"], sens["base_tco"], "TCO [EUR]"),
                 use_container_width=True)
+            st.markdown(
+                '<div class="chart-hover-box chart-hover-sens '
+                'chart-hover-sens-tco">Codul cromatic indică sensul '
+                'variației parametrului analizat, nu o poziție fixă față '
+                'de axa centrală: bara albastră corespunde reducerii '
+                'parametrului cu 20% față de valoarea de referință, iar '
+                'bara portocalie corespunde creșterii acestuia cu 20%. '
+                'Direcția în care se extinde fiecare bară reflectă relația '
+                'fizică dintre parametrul respectiv și costul total de '
+                'proprietate. Pentru majoritatea parametrilor (fizici și '
+                'economici), creșterea parametrului determină creșterea '
+                'costului, astfel încât bara portocalie (+20%) se extinde '
+                'spre dreapta, iar cea albastră (−20%) spre stânga. Pentru '
+                'randamentele funcționale (randamentul termic al '
+                'motorului, randamentul transmisiei), relația este '
+                'inversă — o creștere a randamentului reduce consumul de '
+                'combustibil și, implicit, costul total de proprietate —, '
+                'motiv pentru care, la aceste rânduri, bara portocalie '
+                'apare spre stânga, iar cea albastră spre dreapta, '
+                'reflectând corect comportamentul fizic al sistemului.'
+                '</div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------------------------
 def page_comparatie():
