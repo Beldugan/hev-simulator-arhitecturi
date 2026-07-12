@@ -525,9 +525,13 @@ def _bars_chart(values: dict[str, dict[str, float]], ylabel: str, title: str,
     else:
         ax.set_xticklabels(wrapped, fontsize=8.5)
     ax.set_ylabel(ylabel)
-    ax.set_title(title)
+    # NOTĂ: titlul (y=1.22) și legenda (bbox_to_anchor y=1.09) trebuie
+    # poziționate EXPLICIT la distanță una de alta — verificat programatic
+    # (matplotlib get_window_extent()) că poziția implicită a titlului
+    # (fără y=) cade la aceeași înălțime cu legenda, suprapunându-se.
+    ax.set_title(title, y=1.22)
     ax.legend(ncol=len(archs), loc="upper center",
-              bbox_to_anchor=(0.5, 1.14), columnspacing=1.2)
+              bbox_to_anchor=(0.5, 1.09), columnspacing=1.2)
     ax.grid(axis="y", color="#E5E5EA", linewidth=0.6)
     ax.grid(axis="x", visible=False)
     ax.margins(y=0.16)
@@ -678,8 +682,16 @@ def _tco_chart(tco_table: list[dict]) -> Image:
     ax.axhline(0, c="#3A3A3C", lw=0.7)
     ax.set_xticks(x); ax.set_xticklabels(labels)
     ax.set_ylabel("EUR")
-    ax.set_title("Defalcarea costului total de proprietate (10 ani)")
-    ax.legend(fontsize=8, ncol=3); ax.grid(axis="y", alpha=0.3)
+    # NOTĂ: loc="best" (varianta anterioară) plasează legenda automat
+    # oriunde găsește mai puțină suprapunere cu datele — instabil, pe date
+    # reale a ajuns uneori peste bare/etichetele axei X. Poziție explicită,
+    # deasupra graficului (aceeași tehnică ca la _bars_chart), verificată
+    # programatic că nu se suprapune nici cu titlul, nici cu etichetele
+    # de sumă totală (€) de deasupra barelor.
+    ax.set_title("Defalcarea costului total de proprietate (10 ani)", y=1.24)
+    ax.legend(fontsize=8, ncol=5, loc="upper center",
+              bbox_to_anchor=(0.5, 1.09), columnspacing=1.0)
+    ax.grid(axis="y", alpha=0.3)
     ax.margins(y=0.18)
     return _fig_to_image(fig)
 
